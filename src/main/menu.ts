@@ -104,6 +104,29 @@ export default class MenuBuilder {
       label: 'View',
       submenu: [
         {
+          label: 'Zoom In',
+          accelerator: 'Command+Plus',
+          click: () => {
+            const cur = this.mainWindow.webContents.zoomFactor || 1;
+            this.mainWindow.webContents.zoomFactor = Math.min(cur + 0.1, 5);
+          },
+        },
+        {
+          label: 'Zoom Out',
+          accelerator: 'Command+-',
+          click: () => {
+            const cur = this.mainWindow.webContents.zoomFactor || 1;
+            this.mainWindow.webContents.zoomFactor = Math.max(cur - 0.1, 0.2);
+          },
+        },
+        {
+          label: 'Actual Size',
+          accelerator: 'Command+0',
+          click: () => {
+            this.mainWindow.webContents.zoomFactor = 1;
+          },
+        },
+        {
           label: 'Reload',
           accelerator: 'Command+R',
           click: () => {
@@ -129,6 +152,29 @@ export default class MenuBuilder {
     const subMenuViewProd: MenuItemConstructorOptions = {
       label: 'View',
       submenu: [
+        {
+          label: 'Zoom In',
+          accelerator: 'Command+Plus',
+          click: () => {
+            const cur = this.mainWindow.webContents.zoomFactor || 1;
+            this.mainWindow.webContents.zoomFactor = Math.min(cur + 0.1, 5);
+          },
+        },
+        {
+          label: 'Zoom Out',
+          accelerator: 'Command+-',
+          click: () => {
+            const cur = this.mainWindow.webContents.zoomFactor || 1;
+            this.mainWindow.webContents.zoomFactor = Math.max(cur - 0.1, 0.2);
+          },
+        },
+        {
+          label: 'Actual Size',
+          accelerator: 'Command+0',
+          click: () => {
+            this.mainWindow.webContents.zoomFactor = 1;
+          },
+        },
         {
           label: 'Toggle Full Screen',
           accelerator: 'Ctrl+Command+F',
@@ -217,6 +263,29 @@ export default class MenuBuilder {
           process.env.DEBUG_PROD === 'true'
             ? [
                 {
+                  label: '&Zoom In',
+                  accelerator: 'Ctrl+Plus',
+                  click: () => {
+                    const cur = this.mainWindow.webContents.zoomFactor || 1;
+                    this.mainWindow.webContents.zoomFactor = Math.min(cur + 0.1, 5);
+                  },
+                },
+                {
+                  label: 'Zoom &Out',
+                  accelerator: 'Ctrl+-',
+                  click: () => {
+                    const cur = this.mainWindow.webContents.zoomFactor || 1;
+                    this.mainWindow.webContents.zoomFactor = Math.max(cur - 0.1, 0.2);
+                  },
+                },
+                {
+                  label: '&Actual Size',
+                  accelerator: 'Ctrl+0',
+                  click: () => {
+                    this.mainWindow.webContents.zoomFactor = 1;
+                  },
+                },
+                {
                   label: '&Reload',
                   accelerator: 'Ctrl+R',
                   click: () => {
@@ -241,6 +310,29 @@ export default class MenuBuilder {
                 },
               ]
             : [
+                {
+                  label: '&Zoom In',
+                  accelerator: 'Ctrl+Plus',
+                  click: () => {
+                    const cur = this.mainWindow.webContents.zoomFactor || 1;
+                    this.mainWindow.webContents.zoomFactor = Math.min(cur + 0.1, 5);
+                  },
+                },
+                {
+                  label: 'Zoom &Out',
+                  accelerator: 'Ctrl+-',
+                  click: () => {
+                    const cur = this.mainWindow.webContents.zoomFactor || 1;
+                    this.mainWindow.webContents.zoomFactor = Math.max(cur - 0.1, 0.2);
+                  },
+                },
+                {
+                  label: '&Actual Size',
+                  accelerator: 'Ctrl+0',
+                  click: () => {
+                    this.mainWindow.webContents.zoomFactor = 1;
+                  },
+                },
                 {
                   label: 'Toggle &Full Screen',
                   accelerator: 'F11',

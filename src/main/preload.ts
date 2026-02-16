@@ -7,6 +7,11 @@ export type Channels = 'ipc-example';
 contextBridge.exposeInMainWorld("api", {
   saveJSON: (data:any) => ipcRenderer.invoke("save-json", data),
   loadJSON: () => ipcRenderer.invoke("load-json"),
+  zoomChange: (delta: number) => ipcRenderer.invoke('zoom-change', delta),
+  zoomSet: (factor: number) => ipcRenderer.invoke('zoom-set', factor),
+  zoomIn: () => ipcRenderer.invoke('zoom-in'),
+  zoomOut: () => ipcRenderer.invoke('zoom-out'),
+  zoomReset: () => ipcRenderer.invoke('zoom-reset'),
 });
 
 const electronHandler = {

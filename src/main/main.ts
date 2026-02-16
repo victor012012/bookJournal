@@ -109,6 +109,45 @@ const createWindow = async () => {
     }
   });
 
+  // IPC handlers for renderer-driven zoom control
+  ipcMain.handle('zoom-change', (_, delta: number) => {
+    const bw = BrowserWindow.getFocusedWindow();
+    if (!bw) return false;
+    const cur = bw.webContents.zoomFactor || 1;
+    bw.webContents.zoomFactor = Math.min(Math.max(cur + delta, 0.2), 5);
+    return true;
+  });
+
+  ipcMain.handle('zoom-set', (_, factor: number) => {
+    const bw = BrowserWindow.getFocusedWindow();
+    if (!bw) return false;
+    bw.webContents.zoomFactor = Math.min(Math.max(factor, 0.2), 5);
+    return true;
+  });
+
+  ipcMain.handle('zoom-in', () => {
+    const bw = BrowserWindow.getFocusedWindow();
+    if (!bw) return false;
+    const cur = bw.webContents.zoomFactor || 1;
+    bw.webContents.zoomFactor = Math.min(cur + 0.1, 5);
+    return true;
+  });
+
+  ipcMain.handle('zoom-out', () => {
+    const bw = BrowserWindow.getFocusedWindow();
+    if (!bw) return false;
+    const cur = bw.webContents.zoomFactor || 1;
+    bw.webContents.zoomFactor = Math.max(cur - 0.1, 0.2);
+    return true;
+  });
+
+  ipcMain.handle('zoom-reset', () => {
+    const bw = BrowserWindow.getFocusedWindow();
+    if (!bw) return false;
+    bw.webContents.zoomFactor = 1;
+    return true;
+  });
+
   mainWindow.loadURL(resolveHtmlPath('index.html'));
 
   mainWindow.on('ready-to-show', () => {
