@@ -1,0 +1,48 @@
+.input-line {
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 2px solid white !important;
+  color: white !important;
+  border-radius: 0 !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.input-line::placeholder {
+  color: rgba(255, 255, 255, 0.526) !important;
+}
+
+.input-line:focus {
+  border-bottom: 2px solid white !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: white !important;
+}
+
+.library-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.45) transparent;
+}
+
+.library-scroll::-webkit-scrollbar {
+  width: 10px;
+}
+
+.library-scroll::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 999px;
+}
+
+.library-scroll::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.28));
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.library-scroll::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0.4));
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}

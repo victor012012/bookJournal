@@ -2,21 +2,25 @@
  * @NOTE: Prepend a `~` to css file paths that are in your node_modules
  *        See https://github.com/webpack-contrib/sass-loader#imports
  */
+
+.app-container {
+  width: 100%;
+  height: 100vh;
+  min-width: 0;
+  overflow: hidden;
+}
 body {
   position: relative;
-  color: white;
+  color: white !important;
   height: 100vh;
-  background: linear-gradient(
-    200.96deg,
-    #fedc2a -29.09%,
-    #dd5789 51.77%,
-    #7a2c9e 129.35%
-  );
-  font-family: sans-serif;
+  background: #1C2A44 !important;
+  font-family: "Cascadia Code", sans-serif !important;
   overflow-y: hidden;
-  display: flex;
-  justify-content: center;
-  align-items: center;
+}
+
+html,
+#root {
+  height: 100%;
 }
 
 button {

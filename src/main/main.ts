@@ -10,10 +10,30 @@
  */
 import path from 'path';
 import { app, BrowserWindow, shell, ipcMain } from 'electron';
+import fs from "fs";
 import { autoUpdater } from 'electron-updater';
 import log from 'electron-log';
 import MenuBuilder from './menu';
 import { resolveHtmlPath } from './util';
+
+
+const filePath = path.join(app.getPath("documents"),"BookJournalData.json");
+
+  ipcMain.handle("save-json", async (_, data: any) => {
+    fs.writeFileSync(
+      filePath,
+      JSON.stringify(data, null, 2),
+      "utf-8"
+    );
+    return true;
+  });
+
+  ipcMain.handle("load-json", async () => {
+    if (!fs.existsSync(filePath)) return null;
+
+    const content = fs.readFileSync(filePath, "utf-8");
+    return JSON.parse(content);
+  });
 
 class AppUpdater {
   constructor() {
@@ -27,7 +47,6 @@ let mainWindow: BrowserWindow | null = null;
 
 ipcMain.on('ipc-example', async (event, arg) => {
   const msgTemplate = (pingPong: string) => `IPC test: ${pingPong}`;
-  console.log(msgTemplate(arg));
   event.reply('ipc-example', msgTemplate('pong'));
 });
 
@@ -53,8 +72,10 @@ const installExtensions = async () => {
       extensions.map((name) => installer[name]),
       forceDownload,
     )
-    .catch(console.log);
+    .catch();
 };
+
+
 
 const createWindow = async () => {
   if (isDebug) {
@@ -71,14 +92,21 @@ const createWindow = async () => {
 
   mainWindow = new BrowserWindow({
     show: false,
-    width: 1024,
-    height: 728,
+     width: 1200,
+      minWidth: 1100,
+      height: 800,
     icon: getAssetPath('icon.png'),
     webPreferences: {
       preload: app.isPackaged
         ? path.join(__dirname, 'preload.js')
         : path.join(__dirname, '../../.erb/dll/preload.js'),
     },
+  });
+  mainWindow.webContents.setVisualZoomLevelLimits(1, 5);
+  mainWindow.webContents.on('before-input-event', (_, input:any) => {
+    if (input.control && input.type === 'mouseWheel' && mainWindow) {
+      mainWindow.webContents.zoomFactor += input.deltaY > 0 ? -0.1 : 0.1;
+    }
   });
 
   mainWindow.loadURL(resolveHtmlPath('index.html'));
@@ -134,4 +162,4 @@ app
       if (mainWindow === null) createWindow();
     });
   })
-  .catch(console.log);
+  .catch();

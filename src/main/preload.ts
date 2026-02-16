@@ -4,6 +4,11 @@ import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron';
 
 export type Channels = 'ipc-example';
 
+contextBridge.exposeInMainWorld("api", {
+  saveJSON: (data:any) => ipcRenderer.invoke("save-json", data),
+  loadJSON: () => ipcRenderer.invoke("load-json"),
+});
+
 const electronHandler = {
   ipcRenderer: {
     sendMessage(channel: Channels, ...args: unknown[]) {
