@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Button, Col, Input, Row } from 'reactstrap';
 import Stars from './Stars';
 import ColoredInput from './ColoredInput';
+import FloatingStickers, { Sticker as StickerType } from './FloatingStickers';
 import './index.css';
 
 type Props = {
@@ -79,6 +80,7 @@ export default function BookForm({ onClose }: Props) {
     cover: File | null;
     previewUrl: string | null;
     content: number;
+    stickers: StickerType[];
     inputColors: { [key: string]: string };
     dragging: boolean;
     closing: boolean;
@@ -108,6 +110,7 @@ export default function BookForm({ onClose }: Props) {
     cover: null,
     previewUrl: null,
     inputColors: {},
+    stickers: [],
     dragging: false,
     closing: false,
     saveStatus: 'idle',
@@ -162,6 +165,7 @@ export default function BookForm({ onClose }: Props) {
       }
     }
     if ((initialData as any).inputColors) patch.inputColors = (initialData as any).inputColors;
+    if ((initialData as any).stickers) patch.stickers = (initialData as any).stickers;
     set(patch);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -181,6 +185,7 @@ export default function BookForm({ onClose }: Props) {
       bookReviewColor: state.bookReviewColor,
       dataAdditionalColor: state.dataAdditionalColor,
       inputColors: state.inputColors,
+      stickers: state.stickers,
     };
     console.log('Saving book:', payload);
     try {
@@ -207,6 +212,7 @@ export default function BookForm({ onClose }: Props) {
       bookReviewColor: state.bookReviewColor,
       dataAdditionalColor: state.dataAdditionalColor,
       inputColors: state.inputColors,
+      stickers: state.stickers,
     };
     if (debounceRef.current) window.clearTimeout(debounceRef.current);
     set({ saveStatus: 'saving' });
@@ -789,6 +795,8 @@ export default function BookForm({ onClose }: Props) {
             </Col>
           </Row>
         </div>
+        {/* Floating stickers synced to this BookForm's state */}
+        <FloatingStickers onChange={(s) => set({ stickers: s })} />
       </div>
     </div>
   );
