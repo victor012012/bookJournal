@@ -203,6 +203,75 @@
   box-shadow: 0 20px 60px rgba(0,0,0,0.45);
 }
 
+/* Small color pickers used in BookForm */
+.bookform-container input[type="color"] {
+  -webkit-appearance: none;
+  border: none;
+  padding: 0;
+  width: 34px;
+  height: 24px;
+  border-radius: 6px;
+  background-color: transparent;
+}
+.bookform-container input[type="color"]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+.bookform-container input[type="color"]::-webkit-color-swatch {
+  border: none;
+  border-radius: 6px;
+}
+
+/* Colored input wrapper and color button */
+.colored-input { width: 100%; --ci-color: #ffffff; position: relative; }
+.colored-input .color-btn {
+  width: 36px;
+  height: 28px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.12);
+  cursor: pointer;
+  box-shadow: none;
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 6px;
+  font-size: 14px;
+  line-height: 1;
+  background: transparent;
+  color: inherit;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 140ms ease, transform 140ms ease, box-shadow 120ms ease;
+}
+.colored-input .color-btn .color-icon { display: inline-block; color: var(--ci-btn-color, inherit); }
+
+/* show when hovering the wrapper or when an input inside has focus */
+.colored-input:hover .color-btn,
+.colored-input:focus-within .color-btn {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(-50%) scale(1);
+}
+
+/* ensure inputs have space for the absolute button */
+.colored-input input[type="text"],
+.colored-input textarea,
+.colored-input input[type="number"] {
+  padding-right: 56px !important;
+}
+.colored-input input[type="text"], .colored-input textarea, .colored-input input[type="number"] {
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 2px solid rgba(255,255,255,0.12) !important;
+  color: var(--ci-color, #ffffff) !important;
+  outline: none !important;
+  padding: 6px 8px;
+}
+.colored-input textarea { min-height: 120px; }
+
 /* Header title centered absolutely so it's visually in the center of the page */
 .bookform-header-row {
   position: relative;
@@ -521,6 +590,17 @@
   margin: 0;
 }
 .rating-input {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+/* Also remove spinner arrows for number inputs inside colored inputs */
+.colored-input input[type="number"]::-webkit-outer-spin-button,
+.colored-input input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.colored-input input[type="number"] {
   -moz-appearance: textfield;
   appearance: textfield;
 }

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Button, Col, Input, Row } from 'reactstrap';
 import Stars from './Stars';
+import ColoredInput from './ColoredInput';
 import './index.css';
 
 type Props = {
@@ -62,6 +63,7 @@ export default function BookForm({ onClose }: Props) {
     genre: string;
     publishDate: string;
     summary: string;
+    summaryColor: string;
     format: string;
     rating: number;
     characters: number;
@@ -70,11 +72,14 @@ export default function BookForm({ onClose }: Props) {
     pages: string;
     endDate: string;
     bookReview: string;
+    bookReviewColor: string;
     dataAdditional: string;
+    dataAdditionalColor: string;
     writingStyle: number;
     cover: File | null;
     previewUrl: string | null;
     content: number;
+    inputColors: { [key: string]: string };
     dragging: boolean;
     closing: boolean;
     saveStatus: 'idle' | 'saving' | 'saved';
@@ -86,6 +91,7 @@ export default function BookForm({ onClose }: Props) {
     genre: '',
     publishDate: '',
     summary: '',
+    summaryColor: '#ffffff',
     format: '',
     rating: 0,
     writingStyle: 0,
@@ -96,15 +102,25 @@ export default function BookForm({ onClose }: Props) {
     pages: '',
     endDate: '',
     bookReview: '',
+    bookReviewColor: '#ffffff',
     dataAdditional: '',
+    dataAdditionalColor: '#ffffff',
     cover: null,
     previewUrl: null,
+    inputColors: {},
     dragging: false,
     closing: false,
     saveStatus: 'idle',
   });
   // helper to update partial state
   const set = (patch: Partial<State>) => setState((s) => ({ ...s, ...patch }));
+  const setInputColor = (key: string, color: string) => {
+    setState((s) => {
+      const prev = (s.inputColors || {})[key];
+      if (prev === color) return s;
+      return { ...s, inputColors: { ...(s.inputColors || {}), [key]: color } };
+    });
+  };
   // if initialData provided, apply to state on mount
   useEffect(() => {
     if (!initialData) return;
@@ -114,6 +130,9 @@ export default function BookForm({ onClose }: Props) {
     if (initialData.bookReview) patch.bookReview = initialData.bookReview;
     if (initialData.dataAdditional)
       patch.dataAdditional = initialData.dataAdditional;
+    if ((initialData as any).summaryColor) patch.summaryColor = (initialData as any).summaryColor;
+    if ((initialData as any).bookReviewColor) patch.bookReviewColor = (initialData as any).bookReviewColor;
+    if ((initialData as any).dataAdditionalColor) patch.dataAdditionalColor = (initialData as any).dataAdditionalColor;
     if (initialData.summary) patch.summary = initialData.summary;
     if (initialData.pages) patch.pages = initialData.pages;
     if (initialData.endDate) patch.endDate = initialData.endDate;
@@ -142,6 +161,7 @@ export default function BookForm({ onClose }: Props) {
                 : '';
       }
     }
+    if ((initialData as any).inputColors) patch.inputColors = (initialData as any).inputColors;
     set(patch);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -157,6 +177,10 @@ export default function BookForm({ onClose }: Props) {
       rating: state.rating,
       coverName: state.cover?.name || null,
       format: state.format,
+      summaryColor: state.summaryColor,
+      bookReviewColor: state.bookReviewColor,
+      dataAdditionalColor: state.dataAdditionalColor,
+      inputColors: state.inputColors,
     };
     console.log('Saving book:', payload);
     try {
@@ -179,6 +203,10 @@ export default function BookForm({ onClose }: Props) {
       rating: state.rating,
       coverName: state.cover?.name || null,
       format: state.format,
+      summaryColor: state.summaryColor,
+      bookReviewColor: state.bookReviewColor,
+      dataAdditionalColor: state.dataAdditionalColor,
+      inputColors: state.inputColors,
     };
     if (debounceRef.current) window.clearTimeout(debounceRef.current);
     set({ saveStatus: 'saving' });
@@ -204,6 +232,9 @@ export default function BookForm({ onClose }: Props) {
     state.rating,
     state.cover,
     state.format,
+    state.summaryColor,
+    state.bookReviewColor,
+    state.dataAdditionalColor,
   ]);
 
   // create object URL for preview when a File is set
@@ -218,6 +249,25 @@ export default function BookForm({ onClose }: Props) {
       URL.revokeObjectURL(url);
     };
   }, [state.cover]);
+
+  useEffect(() => {
+    const nums = [
+      state.content,
+      state.plotDevelopment,
+      state.characters,
+      state.readability,
+      state.writingStyle,
+    ].map((n) => Number(n) || 0);
+    const avg = nums.reduce((a, b) => a + b, 0) / nums.length;
+    const rounded = (avg * 10) / 10; // one decimal place
+    set({ rating: rounded.toFixed(1) as unknown as number });
+  }, [
+    state.content,
+    state.plotDevelopment,
+    state.characters,
+    state.readability,
+    state.writingStyle,
+  ]);
 
   const handleClose = () => set({ closing: true });
 
@@ -291,67 +341,79 @@ export default function BookForm({ onClose }: Props) {
             <Col md={8}>
               <Row>
                 <Col md={12}>
-                  <div className="mb-2 d-flex field-underline align-items-center">
+                  <div className="mb-2 d-flex align-items-center">
                     <label className="bookform-label fs-6 me-3">Title: </label>
-                    <Input
-                      className="w-100 input-line"
+                    <ColoredInput
+                      name="title"
                       value={state.title}
-                      onChange={(e) => set({ title: e.target.value })}
+                      onChange={(v) => set({ title: v })}
+                      color={state.inputColors?.title || '#ffffff'}
+                      onColorChange={(c) => setInputColor('title', c)}
                     />
                   </div>
                 </Col>
 
                 <Col md={6}>
-                  <div className="mb-2 d-flex field-underline align-items-center">
+                  <div className="mb-2 d-flex align-items-center">
                     <label className="bookform-label fs-6 me-3">Autor: </label>
-                    <Input
-                      className="w-100 input-line"
+                    <ColoredInput
+                      name="author"
                       value={state.author}
-                      onChange={(e) => set({ author: e.target.value })}
+                      onChange={(v) => set({ author: v })}
+                      color={state.inputColors?.author || '#ffffff'}
+                      onColorChange={(c) => setInputColor('author', c)}
                     />
                   </div>
                 </Col>
                 <Col md={6}>
-                  <div className="mb-2 d-flex field-underline align-items-center">
+                  <div className="mb-2 d-flex align-items-center">
                     <label className="bookform-label fs-6 me-3">Genre: </label>
-                    <Input
-                      className="w-100 input-line"
+                    <ColoredInput
+                      name="genre"
                       value={state.genre}
-                      onChange={(e) => set({ genre: e.target.value })}
+                      onChange={(v) => set({ genre: v })}
+                      color={state.inputColors?.genre || '#ffffff'}
+                      onColorChange={(c) => setInputColor('genre', c)}
                     />
                   </div>
                 </Col>
                 <Col md={6}>
-                  <div className="mb-2 d-flex field-underline align-items-center">
+                  <div className="mb-2 d-flex align-items-center">
                     <label className="bookform-label fs-6 me-3">
                       Publish&nbsp;Date:{' '}
                     </label>
-                    <Input
-                      className="w-100 input-line"
+                    <ColoredInput
+                      name="publishDate"
                       value={state.publishDate}
-                      onChange={(e) => set({ publishDate: e.target.value })}
+                      onChange={(v) => set({ publishDate: v })}
+                      color={state.inputColors?.publishDate || '#ffffff'}
+                      onColorChange={(c) => setInputColor('publishDate', c)}
                     />
                   </div>
                 </Col>
                 <Col md={6}>
-                  <div className="mb-2 d-flex field-underline align-items-center">
+                  <div className="mb-2 d-flex align-items-center">
                     <label className="bookform-label fs-6 me-3">Pages: </label>
-                    <Input
-                      className="w-100 input-line"
+                    <ColoredInput
+                      name="pages"
                       value={state.pages}
-                      onChange={(e) => set({ pages: e.target.value })}
+                      onChange={(v) => set({ pages: v })}
+                      color={state.inputColors?.pages || '#ffffff'}
+                      onColorChange={(c) => setInputColor('pages', c)}
                     />
                   </div>
                 </Col>
                 <Col md={12}>
-                  <div className="mb-2 d-flex field-underline align-items-center">
+                  <div className="mb-2 d-flex align-items-center">
                     <label className="bookform-label fs-6 me-3">
                       End&nbsp;Date:{' '}
                     </label>
-                    <Input
-                      className="w-100 input-line"
+                    <ColoredInput
+                      name="endDate"
                       value={state.endDate}
-                      onChange={(e) => set({ endDate: e.target.value })}
+                      onChange={(v) => set({ endDate: v })}
+                      color={state.inputColors?.endDate || '#ffffff'}
+                      onColorChange={(c) => setInputColor('endDate', c)}
                     />
                   </div>
                 </Col>
@@ -424,20 +486,17 @@ export default function BookForm({ onClose }: Props) {
                 </Col>
               </Row>
 
-              <label className="bookform-label fs-6 me-3">Summary</label>
-              <div className="mb-2 field-underline">
-                <Input
-                  type="textarea"
-                  wrap="off"
-                  className="w-100 input-line no-wrap"
-                  style={{
-                    whiteSpace: 'pre',
-                    overflowWrap: 'normal',
-                    wordBreak: 'normal',
-                    overflowX: 'auto',
-                  }}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <label className="bookform-label fs-6 me-3">Summary</label>
+              </div>
+              <div className="mb-2">
+                <ColoredInput
+                  name="summary"
+                  textarea
                   value={state.summary}
-                  onChange={(e) => set({ summary: e.target.value })}
+                  onChange={(v) => set({ summary: v })}
+                  color={state.inputColors?.summary || state.summaryColor || '#ffffff'}
+                  onColorChange={(c) => { setInputColor('summary', c); set({ summaryColor: c }); }}
                 />
               </div>
 
@@ -490,21 +549,20 @@ export default function BookForm({ onClose }: Props) {
           <label className="w-100 text-center bookform-label fs-5">
             Book Review
           </label>
-          <div className="mb-2 textarea-box">
-            <Input
-              type="textarea"
-              wrap="off"
-              className="w-100 input-line textarea-input no-wrap"
-              style={{
-                whiteSpace: 'pre',
-                overflowWrap: 'normal',
-                wordBreak: 'normal',
-                overflowX: 'auto',
-              }}
-              value={state.bookReview}
-              onChange={(e) => set({ bookReview: e.target.value })}
-            />
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 6 }}>
+            <label className="bookform-label fs-6 me-3" style={{ marginRight: 8, display: 'none' }}>Book Review color</label>
+
           </div>
+            <div className="mb-2 textarea-box">
+              <ColoredInput
+                name="bookReview"
+                textarea
+                value={state.bookReview}
+                onChange={(v) => set({ bookReview: v })}
+                color={state.inputColors?.bookReview || state.bookReviewColor || '#ffffff'}
+                onColorChange={(c) => { setInputColor('bookReview', c); set({ bookReviewColor: c }); }}
+              />
+            </div>
           <Row className="mt-3">
             <Col md={6}>
               <label className="bookform-label fs-6 me-3">
@@ -512,19 +570,16 @@ export default function BookForm({ onClose }: Props) {
               </label>
               <div className="mb-2 d-flex field-underline"></div>
               <div style={{ height: 150 }}></div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 6 }}>
+              </div>
               <div className="mb-2 textarea-box">
-                <Input
-                  type="textarea"
-                  wrap="off"
-                  className="w-100 input-line textarea-input no-wrap"
-                  style={{
-                    whiteSpace: 'pre',
-                    overflowWrap: 'normal',
-                    wordBreak: 'normal',
-                    overflowX: 'auto',
-                  }}
+                <ColoredInput
+                  name="dataAdditional"
+                  textarea
                   value={state.dataAdditional}
-                  onChange={(e) => set({ dataAdditional: e.target.value })}
+                  onChange={(v) => set({ dataAdditional: v })}
+                  color={state.inputColors?.dataAdditional || state.dataAdditionalColor || '#ffffff'}
+                  onColorChange={(c) => { setInputColor('dataAdditional', c); set({ dataAdditionalColor: c }); }}
                 />
               </div>
             </Col>
@@ -561,7 +616,7 @@ export default function BookForm({ onClose }: Props) {
                       type="number"
                       value={state.content}
                       onChange={(e: any) =>
-                        set({ content: Number(e.target.value) })
+                        set({ content: e.target.value })
                       }
                       className="rating-input input-line"
                     />
@@ -600,7 +655,7 @@ export default function BookForm({ onClose }: Props) {
                       type="number"
                       value={state.writingStyle}
                       onChange={(e: any) =>
-                        set({ writingStyle: Number(e.target.value) })
+                        set({ writingStyle: e.target.value })
                       }
                       className="rating-input input-line"
                     />
@@ -639,7 +694,7 @@ export default function BookForm({ onClose }: Props) {
                       type="number"
                       value={state.readability}
                       onChange={(e: any) =>
-                        set({ readability: Number(e.target.value) })
+                        set({ readability: e.target.value })
                       }
                       className="rating-input input-line"
                     />
@@ -678,7 +733,7 @@ export default function BookForm({ onClose }: Props) {
                       type="number"
                       value={state.plotDevelopment}
                       onChange={(e: any) =>
-                        set({ plotDevelopment: Number(e.target.value) })
+                        set({ plotDevelopment: e.target.value })
                       }
                       className="rating-input input-line"
                     />
@@ -720,7 +775,7 @@ export default function BookForm({ onClose }: Props) {
                       type="number"
                       value={state.characters}
                       onChange={(e: any) =>
-                        set({ characters: Number(e.target.value) })
+                        set({ characters: e.target.value })
                       }
                       className="rating-input input-line"
                     />
@@ -728,20 +783,8 @@ export default function BookForm({ onClose }: Props) {
                 </Row>
               </div>
 
-              <div className="mb-2 textarea-box">
-                <Input
-                  type="textarea"
-                  wrap="off"
-                  className="w-100 input-line textarea-input no-wrap"
-                  style={{
-                    whiteSpace: 'pre',
-                    overflowWrap: 'normal',
-                    wordBreak: 'normal',
-                    overflowX: 'auto',
-                  }}
-                  value={state.dataAdditional}
-                  onChange={(e) => set({ dataAdditional: e.target.value })}
-                />
+              <div className="mb-2 textarea-box" style={{ height: 350 }}>
+                
               </div>
             </Col>
           </Row>

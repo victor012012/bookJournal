@@ -105,7 +105,9 @@ const createWindow = async () => {
   mainWindow.webContents.setVisualZoomLevelLimits(1, 5);
   mainWindow.webContents.on('before-input-event', (_, input:any) => {
     if (input.control && input.type === 'mouseWheel' && mainWindow) {
-      mainWindow.webContents.zoomFactor += input.deltaY > 0 ? -0.1 : 0.1;
+      const delta = input.deltaY > 0 ? -0.1 : 0.1;
+      const cur = mainWindow.webContents.zoomFactor || 1;
+      mainWindow.webContents.zoomFactor = Math.min(Math.max(cur + delta, 0.2), 1);
     }
   });
 
@@ -114,14 +116,14 @@ const createWindow = async () => {
     const bw = BrowserWindow.getFocusedWindow();
     if (!bw) return false;
     const cur = bw.webContents.zoomFactor || 1;
-    bw.webContents.zoomFactor = Math.min(Math.max(cur + delta, 0.2), 5);
+    bw.webContents.zoomFactor = Math.min(Math.max(cur + delta, 0.2), 1);
     return true;
   });
 
   ipcMain.handle('zoom-set', (_, factor: number) => {
     const bw = BrowserWindow.getFocusedWindow();
     if (!bw) return false;
-    bw.webContents.zoomFactor = Math.min(Math.max(factor, 0.2), 5);
+    bw.webContents.zoomFactor = Math.min(Math.max(factor, 0.2), 1);
     return true;
   });
 
@@ -129,7 +131,7 @@ const createWindow = async () => {
     const bw = BrowserWindow.getFocusedWindow();
     if (!bw) return false;
     const cur = bw.webContents.zoomFactor || 1;
-    bw.webContents.zoomFactor = Math.min(cur + 0.1, 5);
+    bw.webContents.zoomFactor = Math.min(cur + 0.1, 1);
     return true;
   });
 
