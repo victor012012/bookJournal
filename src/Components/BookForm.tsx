@@ -1,13 +1,49 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Button, Col, Input, Row } from 'reactstrap';
 import Stars from './Stars';
 import ColoredInput from './ColoredInput';
 import FloatingStickers, { Sticker as StickerType } from './FloatingStickers';
 import './index.css';
 
+// Compress and convert image File to base64 data URL
+// Resizes to max 800px and compresses as JPEG
+function fileToBase64(file: File, maxSize = 800, quality = 0.7): Promise<string> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      let { width, height } = img;
+      // Scale down if larger than maxSize
+      if (width > maxSize || height > maxSize) {
+        if (width > height) {
+          height = Math.round((height * maxSize) / width);
+          width = maxSize;
+        } else {
+          width = Math.round((width * maxSize) / height);
+          height = maxSize;
+        }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d')!;
+      ctx.drawImage(img, 0, 0, width, height);
+      // Use JPEG for smaller size (PNG for transparency if needed)
+      const base64 = canvas.toDataURL('image/jpeg', quality);
+      resolve(base64);
+    };
+    // Read file as data URL to load into Image
+    const reader = new FileReader();
+    reader.onload = () => {
+      img.src = reader.result as string;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 type Props = {
   onClose: () => void;
   initialData?: {
+    id?: string;
     title?: string;
     author?: string;
     summary?: string;
@@ -34,6 +70,7 @@ export default function BookForm({ onClose }: Props) {
   // (declared in the function signature below to keep types consistent)
   const initialData = (arguments[0] as any)?.initialData as
     | {
+        id?: string;
         title?: string;
         author?: string;
         summary?: string;
@@ -59,6 +96,7 @@ export default function BookForm({ onClose }: Props) {
     | undefined;
 
   type State = {
+    id: string | null;
     title: string;
     author: string;
     genre: string;
@@ -76,6 +114,9 @@ export default function BookForm({ onClose }: Props) {
     bookReviewColor: string;
     dataAdditional: string;
     dataAdditionalColor: string;
+    summaryHeight?: number;
+    bookReviewHeight?: number;
+    dataAdditionalHeight?: number;
     writingStyle: number;
     cover: File | null;
     previewUrl: string | null;
@@ -88,6 +129,7 @@ export default function BookForm({ onClose }: Props) {
   };
 
   const [state, setState] = useState<State>({
+    id: null,
     title: '',
     author: '',
     genre: '',
@@ -107,6 +149,9 @@ export default function BookForm({ onClose }: Props) {
     bookReviewColor: '#ffffff',
     dataAdditional: '',
     dataAdditionalColor: '#ffffff',
+    summaryHeight: undefined,
+    bookReviewHeight: undefined,
+    dataAdditionalHeight: undefined,
     cover: null,
     previewUrl: null,
     inputColors: {},
@@ -115,7 +160,8 @@ export default function BookForm({ onClose }: Props) {
     closing: false,
     saveStatus: 'idle',
   });
-  // helper to update partial state
+
+  
   const set = (patch: Partial<State>) => setState((s) => ({ ...s, ...patch }));
   const setInputColor = (key: string, color: string) => {
     setState((s) => {
@@ -128,8 +174,11 @@ export default function BookForm({ onClose }: Props) {
   useEffect(() => {
     if (!initialData) return;
     const patch: Partial<State> = {};
+    if (initialData.id) patch.id = initialData.id;
     if (initialData.title) patch.title = initialData.title;
     if (initialData.author) patch.author = initialData.author;
+    if ((initialData as any).genre) patch.genre = (initialData as any).genre;
+    if (initialData.publishDate) patch.publishDate = initialData.publishDate;
     if (initialData.bookReview) patch.bookReview = initialData.bookReview;
     if (initialData.dataAdditional)
       patch.dataAdditional = initialData.dataAdditional;
@@ -147,8 +196,13 @@ export default function BookForm({ onClose }: Props) {
       patch.plotDevelopment = initialData.plotDevelopment;
     if (initialData.readability) patch.readability = initialData.readability;
     if (initialData.characters) patch.characters = initialData.characters;
+    if ((initialData as any).summaryHeight) patch.summaryHeight = (initialData as any).summaryHeight;
+    if ((initialData as any).bookReviewHeight) patch.bookReviewHeight = (initialData as any).bookReviewHeight;
+    if ((initialData as any).dataAdditionalHeight) patch.dataAdditionalHeight = (initialData as any).dataAdditionalHeight;
     // accept either object shape or string for backwards compatibility
-    if (initialData.formats) {
+    if ((initialData as any).format) {
+      patch.format = (initialData as any).format;
+    } else if (initialData.formats) {
       if (typeof initialData.formats === 'string')
         patch.format = initialData.formats as any;
       else {
@@ -173,53 +227,52 @@ export default function BookForm({ onClose }: Props) {
   // debounce ref for autosave
   const debounceRef = useRef<number | null>(null);
 
-  const handleSave = async () => {
-    const payload = {
-      title: state.title,
-      author: state.author,
-      description: state.summary,
-      rating: state.rating,
-      coverName: state.cover?.name || null,
-      format: state.format,
-      summaryColor: state.summaryColor,
-      bookReviewColor: state.bookReviewColor,
-      dataAdditionalColor: state.dataAdditionalColor,
-      inputColors: state.inputColors,
-      stickers: state.stickers,
-    };
-    console.log('Saving book:', payload);
-    try {
-      set({ saveStatus: 'saving' });
-      if (window.api?.saveJSON) await window.api.saveJSON(payload);
-      set({ saveStatus: 'saved' });
-      setTimeout(() => set({ saveStatus: 'idle' }), 1400);
-    } catch (e) {
-      console.error('Save failed', e);
-      set({ saveStatus: 'idle' });
-    }
-    set({ closing: true });
-  };
+  const buildPayload = () => ({
+    id: state.id,
+    title: state.title,
+    author: state.author,
+    genre: state.genre,
+    publishDate: state.publishDate,
+    summary: state.summary,
+    pages: state.pages,
+    endDate: state.endDate,
+    bookReview: state.bookReview,
+    dataAdditional: state.dataAdditional,
+    rating: state.rating,
+    content: state.content,
+    writingStyle: state.writingStyle,
+    plotDevelopment: state.plotDevelopment,
+    characters: state.characters,
+    readability: state.readability,
+    coverUrl: state.previewUrl,
+    format: state.format,
+    summaryColor: state.summaryColor,
+    bookReviewColor: state.bookReviewColor,
+    dataAdditionalColor: state.dataAdditionalColor,
+    inputColors: state.inputColors,
+    stickers: state.stickers,
+    summaryHeight: state.summaryHeight,
+    bookReviewHeight: state.bookReviewHeight,
+    dataAdditionalHeight: state.dataAdditionalHeight,
+  });
 
+  // Debounced autosave - watches all data fields (not UI state like dragging, closing, saveStatus)
   useEffect(() => {
-    const payload = {
-      title: state.title,
-      author: state.author,
-      description: state.summary,
-      rating: state.rating,
-      coverName: state.cover?.name || null,
-      format: state.format,
-      summaryColor: state.summaryColor,
-      bookReviewColor: state.bookReviewColor,
-      dataAdditionalColor: state.dataAdditionalColor,
-      inputColors: state.inputColors,
-      stickers: state.stickers,
-    };
+    // Skip saving on initial mount or when no meaningful data
+    if (!state.title && !state.author && !state.summary && !state.bookReview) {
+      return;
+    }
+
     if (debounceRef.current) window.clearTimeout(debounceRef.current);
-    set({ saveStatus: 'saving' });
-    // schedule save
+
     debounceRef.current = window.setTimeout(async () => {
+      const payload = buildPayload();
       try {
-        if (window.api?.saveJSON) await window.api.saveJSON(payload);
+        set({ saveStatus: 'saving' });
+        if (window.api?.saveJSON) {
+          const returnedId = await window.api.saveJSON(payload);
+          if (!state.id && returnedId) set({ id: returnedId });
+        }
         set({ saveStatus: 'saved' });
         setTimeout(() => set({ saveStatus: 'idle' }), 1200);
       } catch (e) {
@@ -227,33 +280,54 @@ export default function BookForm({ onClose }: Props) {
         set({ saveStatus: 'idle' });
       }
       debounceRef.current = null;
-    }, 900) as unknown as number;
+    }, 1000) as unknown as number;
+
     return () => {
       if (debounceRef.current) window.clearTimeout(debounceRef.current);
     };
   }, [
+    // Only data fields that should trigger save - NOT UI state
+    // Note: state.id is NOT included to avoid loop when ID is assigned after first save
     state.title,
     state.author,
+    state.genre,
+    state.publishDate,
     state.summary,
+    state.pages,
+    state.endDate,
+    state.bookReview,
+    state.dataAdditional,
     state.rating,
-    state.cover,
+    state.content,
+    state.writingStyle,
+    state.plotDevelopment,
+    state.characters,
+    state.readability,
+    state.previewUrl,
     state.format,
     state.summaryColor,
     state.bookReviewColor,
     state.dataAdditionalColor,
+    // Stringify complex objects to avoid reference comparison issues
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    JSON.stringify(state.inputColors),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    JSON.stringify(state.stickers),
+    state.summaryHeight,
+    state.bookReviewHeight,
+    state.dataAdditionalHeight,
   ]);
 
-  // create object URL for preview when a File is set
+  // Convert cover File to base64 when a File is set
   useEffect(() => {
     if (!state.cover) {
       // keep existing previewUrl if it was set from initialData
       return;
     }
-    const url = URL.createObjectURL(state.cover);
-    set({ previewUrl: url });
-    return () => {
-      URL.revokeObjectURL(url);
-    };
+    // Convert to base64 for persistence
+    fileToBase64(state.cover).then((base64) => {
+      set({ previewUrl: base64, cover: null }); // clear cover File after conversion
+    });
   }, [state.cover]);
 
   useEffect(() => {
@@ -265,8 +339,12 @@ export default function BookForm({ onClose }: Props) {
       state.writingStyle,
     ].map((n) => Number(n) || 0);
     const avg = nums.reduce((a, b) => a + b, 0) / nums.length;
-    const rounded = (avg * 10) / 10; // one decimal place
-    set({ rating: rounded.toFixed(1) as unknown as number });
+    const newRating = Math.round(avg * 10) / 10; // one decimal place as number
+    // Only update if value changed to avoid infinite loops
+    setState((prev) => {
+      if (prev.rating === newRating) return prev;
+      return { ...prev, rating: newRating };
+    });
   }, [
     state.content,
     state.plotDevelopment,
@@ -276,6 +354,15 @@ export default function BookForm({ onClose }: Props) {
   ]);
 
   const handleClose = () => set({ closing: true });
+
+  // Memoized handler for FloatingStickers to prevent unnecessary re-renders
+  const handleStickersChange = useCallback((s: StickerType[]) => {
+    setState((prev) => {
+      // Only update if stickers actually changed
+      if (JSON.stringify(prev.stickers) === JSON.stringify(s)) return prev;
+      return { ...prev, stickers: s };
+    });
+  }, []);
 
   const onAnimationEnd = () => {
     if (state.closing) onClose();
@@ -359,7 +446,7 @@ export default function BookForm({ onClose }: Props) {
                   </div>
                 </Col>
 
-                <Col md={6}>
+                <Col md={7}>
                   <div className="mb-2 d-flex align-items-center">
                     <label className="bookform-label fs-6 me-3">Autor: </label>
                     <ColoredInput
@@ -371,7 +458,7 @@ export default function BookForm({ onClose }: Props) {
                     />
                   </div>
                 </Col>
-                <Col md={6}>
+                <Col md={5}>
                   <div className="mb-2 d-flex align-items-center">
                     <label className="bookform-label fs-6 me-3">Genre: </label>
                     <ColoredInput
@@ -383,13 +470,14 @@ export default function BookForm({ onClose }: Props) {
                     />
                   </div>
                 </Col>
-                <Col md={6}>
+                <Col md={7}>
                   <div className="mb-2 d-flex align-items-center">
                     <label className="bookform-label fs-6 me-3">
                       Publish&nbsp;Date:{' '}
                     </label>
                     <ColoredInput
                       name="publishDate"
+                      type="date"
                       value={state.publishDate}
                       onChange={(v) => set({ publishDate: v })}
                       color={state.inputColors?.publishDate || '#ffffff'}
@@ -397,11 +485,12 @@ export default function BookForm({ onClose }: Props) {
                     />
                   </div>
                 </Col>
-                <Col md={6}>
+                <Col md={5}>
                   <div className="mb-2 d-flex align-items-center">
                     <label className="bookform-label fs-6 me-3">Pages: </label>
                     <ColoredInput
                       name="pages"
+                      type="number"
                       value={state.pages}
                       onChange={(v) => set({ pages: v })}
                       color={state.inputColors?.pages || '#ffffff'}
@@ -416,6 +505,7 @@ export default function BookForm({ onClose }: Props) {
                     </label>
                     <ColoredInput
                       name="endDate"
+                      type="date"
                       value={state.endDate}
                       onChange={(v) => set({ endDate: v })}
                       color={state.inputColors?.endDate || '#ffffff'}
@@ -500,6 +590,9 @@ export default function BookForm({ onClose }: Props) {
                   name="summary"
                   textarea
                   value={state.summary}
+                  defaultHeight={300}
+                  savedHeight={state.summaryHeight}
+                  onHeightChange={(h) => set({ summaryHeight: h })}
                   onChange={(v) => set({ summary: v })}
                   color={state.inputColors?.summary || state.summaryColor || '#ffffff'}
                   onColorChange={(c) => { setInputColor('summary', c); set({ summaryColor: c }); }}
@@ -564,6 +657,8 @@ export default function BookForm({ onClose }: Props) {
                 name="bookReview"
                 textarea
                 value={state.bookReview}
+                savedHeight={state.bookReviewHeight}
+                onHeightChange={(h) => set({ bookReviewHeight: h })}
                 onChange={(v) => set({ bookReview: v })}
                 color={state.inputColors?.bookReview || state.bookReviewColor || '#ffffff'}
                 onColorChange={(c) => { setInputColor('bookReview', c); set({ bookReviewColor: c }); }}
@@ -583,6 +678,9 @@ export default function BookForm({ onClose }: Props) {
                   name="dataAdditional"
                   textarea
                   value={state.dataAdditional}
+                  defaultHeight={400}
+                  savedHeight={state.dataAdditionalHeight}
+                  onHeightChange={(h) => set({ dataAdditionalHeight: h })}
                   onChange={(v) => set({ dataAdditional: v })}
                   color={state.inputColors?.dataAdditional || state.dataAdditionalColor || '#ffffff'}
                   onColorChange={(c) => { setInputColor('dataAdditional', c); set({ dataAdditionalColor: c }); }}
@@ -796,7 +894,7 @@ export default function BookForm({ onClose }: Props) {
           </Row>
         </div>
         {/* Floating stickers synced to this BookForm's state */}
-        <FloatingStickers onChange={(s) => set({ stickers: s })} />
+        <FloatingStickers onChange={handleStickersChange} initialStickers={state.stickers} />
       </div>
     </div>
   );

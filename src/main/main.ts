@@ -19,21 +19,55 @@ import { resolveHtmlPath } from './util';
 
 const filePath = path.join(app.getPath("documents"),"BookJournalData.json");
 
-  ipcMain.handle("save-json", async (_, data: any) => {
-    fs.writeFileSync(
-      filePath,
-      JSON.stringify(data, null, 2),
-      "utf-8"
-    );
-    return true;
-  });
-
-  ipcMain.handle("load-json", async () => {
-    if (!fs.existsSync(filePath)) return null;
-
+// Helper to load all books
+function loadAllBooks(): any[] {
+  if (!fs.existsSync(filePath)) return [];
+  try {
     const content = fs.readFileSync(filePath, "utf-8");
-    return JSON.parse(content);
-  });
+    const data = JSON.parse(content);
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
+}
+
+// Helper to save all books
+function saveAllBooks(books: any[]): void {
+  fs.writeFileSync(filePath, JSON.stringify(books, null, 2), "utf-8");
+}
+
+// Save a single book (upsert by id)
+ipcMain.handle("save-json", async (_, data: any) => {
+  const books = loadAllBooks();
+  if (!data.id) {
+    // New book - assign ID
+    data.id = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    books.push(data);
+  } else {
+    // Update existing book
+    const idx = books.findIndex((b: any) => b.id === data.id);
+    if (idx >= 0) {
+      books[idx] = data;
+    } else {
+      books.push(data);
+    }
+  }
+  saveAllBooks(books);
+  return data.id;
+});
+
+// Load all books
+ipcMain.handle("load-json", async () => {
+  return loadAllBooks();
+});
+
+// Delete a book by ID
+ipcMain.handle("delete-book", async (_, id: string) => {
+  const books = loadAllBooks();
+  const filtered = books.filter((b: any) => b.id !== id);
+  saveAllBooks(filtered);
+  return true;
+});
 
 class AppUpdater {
   constructor() {
@@ -92,9 +126,9 @@ const createWindow = async () => {
 
   mainWindow = new BrowserWindow({
     show: false,
-     width: 1200,
-      minWidth: 1100,
-      height: 800,
+    width: 1090,
+    minWidth: 1090,
+    height: 950,
     icon: getAssetPath('icon.png'),
     webPreferences: {
       preload: app.isPackaged

@@ -7,6 +7,7 @@ export type Channels = 'ipc-example';
 contextBridge.exposeInMainWorld("api", {
   saveJSON: (data:any) => ipcRenderer.invoke("save-json", data),
   loadJSON: () => ipcRenderer.invoke("load-json"),
+  deleteBook: (id: string) => ipcRenderer.invoke("delete-book", id),
   zoomChange: (delta: number) => ipcRenderer.invoke('zoom-change', delta),
   zoomSet: (factor: number) => ipcRenderer.invoke('zoom-set', factor),
   zoomIn: () => ipcRenderer.invoke('zoom-in'),
