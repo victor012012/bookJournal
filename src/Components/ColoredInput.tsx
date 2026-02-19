@@ -32,7 +32,7 @@ export default function ColoredInput({
   placeholder = '',
   showColorIcon = true,
   icon = '✏️',
-  inputWidth,
+  inputWidth = '100%',
   defaultHeight,
   savedHeight,
   onHeightChange,
@@ -162,7 +162,7 @@ export default function ColoredInput({
             const v = type === 'number' ? (e.target.value === '' ? '' : Number(e.target.value)) : e.target.value;
             onChange(v as any);
           }}
-          className={`w-100 fs-5`}
+          className={`fs-5`}
           placeholder={placeholder}
           style={{
             ...style,

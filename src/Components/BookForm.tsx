@@ -728,19 +728,21 @@ export default function BookForm({ onClose }: Props) {
                     />
                   </div>
                 </Col>
-                <Col md={5}>
+                  <Col md={5}>
                   <div className="mb-2 d-flex align-items-center">
-                    <label className="bookform-label fs-5 me-3">Genre: </label>
+                    <label className="bookform-label fs-5 me-3">Pages: </label>
                     <ColoredInput
-                      name="genre"
-                      value={state.genre}
+                      name="pages"
+                      type="number"
+                      value={state.pages}
                       showColorIcon={false}
-                      onChange={(v) => set({ genre: v })}
+                      onChange={(v) => set({ pages: v })}
                       color={state.inputColors?.title || 'rgb(0, 206, 209)'}
-                      onColorChange={(c) => setInputColor('genre', c)}
+                      onColorChange={(c) => setInputColor('pages', c)}
                     />
                   </div>
                 </Col>
+                
                 <Col md={7}>
                   <div className="mb-2 d-flex align-items-center">
                     <label className="bookform-label fs-5 me-3">
@@ -757,25 +759,9 @@ export default function BookForm({ onClose }: Props) {
                     />
                   </div>
                 </Col>
-                <Col md={5}>
-                  <div className="mb-2 d-flex align-items-center">
-                    <label className="bookform-label fs-5 me-3">Pages: </label>
-                    <ColoredInput
-                      name="pages"
-                      type="number"
-                      value={state.pages}
-                      showColorIcon={false}
-                      onChange={(v) => set({ pages: v })}
-                      color={state.inputColors?.title || 'rgb(0, 206, 209)'}
-                      onColorChange={(c) => setInputColor('pages', c)}
-                    />
-                  </div>
-                </Col>
-                <Col md={12}>
-                  <div className="mb-2 d-flex align-items-center">
-                    <label className="bookform-label fs-5 me-3">
-                      End&nbsp;Date:{' '}
-                    </label>
+              <Col md={5}>
+                 <div className="mb-2 d-flex align-items-center me-5">
+                    <label className="bookform-label fs-5"> End&nbsp;Date:</label>
                     <ColoredInput
                       name="endDate"
                       type="date"
@@ -784,6 +770,21 @@ export default function BookForm({ onClose }: Props) {
                       onChange={(v) => set({ endDate: v })}
                       color={state.inputColors?.title || 'rgb(0, 206, 209)'}
                       onColorChange={(c) => setInputColor('endDate', c)}
+                      inputWidth={188}
+                    />
+                  </div>
+                  
+                </Col>
+                <Col md={12}>
+                 <div className="mb-2 d-flex align-items-center">
+                    <label className="bookform-label fs-5 me-3">Genre: </label>
+                    <ColoredInput
+                      name="genre"
+                      value={state.genre}
+                      showColorIcon={false}
+                      onChange={(v) => set({ genre: v })}
+                      color={state.inputColors?.title || 'rgb(0, 206, 209)'}
+                      onColorChange={(c) => setInputColor('genre', c)}
                     />
                   </div>
                 </Col>

@@ -292,7 +292,7 @@ export default function FloatingStickers({ initialStickers, onChange }: Props = 
           }}
           onPointerDown={(e) => onPointerDown(e, st.id)}
         >
-          <img src={st.url} alt="sticker" draggable={false} style={{ objectFit: 'fill' }} />
+          <img src={st.url} alt="sticker" draggable={false} style={{ objectFit: 'fill', boxShadow: "none" }} />
           {/* Delete button */}
           <button
             className="sticker-delete-btn"
