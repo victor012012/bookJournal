@@ -40,10 +40,44 @@ function fileToBase64(file: File, maxSize = 800, quality = 0.7): Promise<string>
   });
 }
 
+// Compress and convert sticker image File to base64 data URL
+// Resizes to max 400px and uses PNG (stickers may have transparency)
+function stickerFileToBase64(file: File, maxSize = 400, quality = 0.8): Promise<string> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      let { width, height } = img;
+      if (width > maxSize || height > maxSize) {
+        if (width > height) {
+          height = Math.round((height * maxSize) / width);
+          width = maxSize;
+        } else {
+          width = Math.round((width * maxSize) / height);
+          height = maxSize;
+        }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d')!;
+      ctx.drawImage(img, 0, 0, width, height);
+      const base64 = canvas.toDataURL('image/png', quality);
+      resolve(base64);
+    };
+    const reader = new FileReader();
+    reader.onload = () => {
+      img.src = reader.result as string;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 type Props = {
   onClose: () => void;
+  defaultCategory?: 'novels' | 'series';
   initialData?: {
     id?: string;
+    category?: 'novels' | 'series' | string;
     title?: string;
     author?: string;
     summary?: string;
@@ -71,6 +105,7 @@ export default function BookForm({ onClose }: Props) {
   const initialData = (arguments[0] as any)?.initialData as
     | {
         id?: string;
+        category?: 'novels' | 'series' | string;
         title?: string;
         author?: string;
         summary?: string;
@@ -95,8 +130,12 @@ export default function BookForm({ onClose }: Props) {
       }
     | undefined;
 
+  const defaultCategory =
+    (((arguments[0] as any)?.defaultCategory as 'novels' | 'series' | undefined) ?? 'novels');
+
   type State = {
     id: string | null;
+    category: 'novels' | 'series';
     title: string;
     author: string;
     genre: string;
@@ -130,12 +169,13 @@ export default function BookForm({ onClose }: Props) {
 
   const [state, setState] = useState<State>({
     id: null,
+    category: defaultCategory,
     title: '',
     author: '',
     genre: '',
     publishDate: '',
     summary: '',
-    summaryColor: '#ffffff',
+    summaryColor: 'rgb(220, 220, 170)',
     format: '',
     rating: 0,
     writingStyle: 0,
@@ -146,9 +186,9 @@ export default function BookForm({ onClose }: Props) {
     pages: '',
     endDate: '',
     bookReview: '',
-    bookReviewColor: '#ffffff',
+    bookReviewColor: 'rgb(77, 201, 176)',
     dataAdditional: '',
-    dataAdditionalColor: '#ffffff',
+    dataAdditionalColor: 'rgb(206, 136, 94)',
     summaryHeight: undefined,
     bookReviewHeight: undefined,
     dataAdditionalHeight: undefined,
@@ -161,8 +201,54 @@ export default function BookForm({ onClose }: Props) {
     saveStatus: 'idle',
   });
 
+  const [stickerDragOver, setStickerDragOver] = useState(false);
+  const [showStickerDropOverlay, setShowStickerDropOverlay] = useState(false);
+
   
   const set = (patch: Partial<State>) => setState((s) => ({ ...s, ...patch }));
+
+  type RatingField =
+    | 'content'
+    | 'writingStyle'
+    | 'readability'
+    | 'plotDevelopment'
+    | 'characters';
+
+  const [ratingEdit, setRatingEdit] = useState<{
+    field: RatingField | null;
+    value: string;
+  }>({ field: null, value: '' });
+
+  const parseRating = (raw: string): number | null => {
+    const trimmed = raw.trim();
+    if (trimmed === '') return null;
+    const n = Number(trimmed);
+    return Number.isFinite(n) ? n : null;
+  };
+
+  const ratingInputValue = (field: RatingField, numericValue: number) =>
+    ratingEdit.field === field ? ratingEdit.value : numericValue;
+
+  const handleRatingFocus = (field: RatingField) => (e: any) => {
+    const cur = Number((state as any)[field] ?? 0);
+    setRatingEdit({ field, value: cur === 0 ? '' : String(cur) });
+    if (e?.target?.select) e.target.select();
+  };
+
+  const handleRatingChange = (field: RatingField) => (e: any) => {
+    const raw = String(e?.target?.value ?? '');
+    setRatingEdit({ field, value: raw });
+    const parsed = parseRating(raw);
+    if (parsed !== null) set({ [field]: parsed } as any);
+  };
+
+  const handleRatingBlur = (field: RatingField) => (e: any) => {
+    const raw = String(e?.target?.value ?? '');
+    const parsed = parseRating(raw);
+    set({ [field]: parsed ?? 0 } as any);
+    setRatingEdit((prev) => (prev.field === field ? { field: null, value: '' } : prev));
+  };
+
   const setInputColor = (key: string, color: string) => {
     setState((s) => {
       const prev = (s.inputColors || {})[key];
@@ -175,6 +261,13 @@ export default function BookForm({ onClose }: Props) {
     if (!initialData) return;
     const patch: Partial<State> = {};
     if (initialData.id) patch.id = initialData.id;
+    const incomingCategory = String((initialData as any).category ?? '').toLowerCase();
+    patch.category =
+      incomingCategory === 'series'
+        ? 'series'
+        : incomingCategory === 'novels'
+          ? 'novels'
+          : defaultCategory;
     if (initialData.title) patch.title = initialData.title;
     if (initialData.author) patch.author = initialData.author;
     if ((initialData as any).genre) patch.genre = (initialData as any).genre;
@@ -226,9 +319,58 @@ export default function BookForm({ onClose }: Props) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   // debounce ref for autosave
   const debounceRef = useRef<number | null>(null);
+  const stickerDragOverTimeoutRef = useRef<number | null>(null);
+  const stickerGlobalDragTimeoutRef = useRef<number | null>(null);
+
+  const looksLikeImageName = (name: string) => {
+    const lower = name.toLowerCase();
+    return (
+      lower.endsWith('.png') ||
+      lower.endsWith('.jpg') ||
+      lower.endsWith('.jpeg') ||
+      lower.endsWith('.webp') ||
+      lower.endsWith('.gif') ||
+      lower.endsWith('.bmp') ||
+      lower.endsWith('.svg') ||
+      lower.endsWith('.avif')
+    );
+  };
+
+  const isImageDrag = (dt: DataTransfer | null) => {
+    if (!dt) return false;
+
+    // Some environments already populate dt.files during dragover.
+    const files = Array.from(dt.files || []);
+    if (files.length > 0) {
+      return files.some((f) => (f.type || '').startsWith('image/') || looksLikeImageName(f.name || ''));
+    }
+
+    const items = Array.from(dt.items || []);
+    if (items.length > 0) {
+      return items.some((it) => {
+        if (it.kind !== 'file') return false;
+        if ((it.type || '').startsWith('image/')) return true;
+        // On Windows/Electron, it.type can be empty until drop.
+        const f = typeof it.getAsFile === 'function' ? it.getAsFile() : null;
+        if (!f) return false;
+        return (f.type || '').startsWith('image/') || looksLikeImageName(f.name || '');
+      });
+    }
+    return false;
+  };
+
+  const isFileDrag = (dt: DataTransfer | null) => {
+    if (!dt) return false;
+    if (dt.files && dt.files.length > 0) return true;
+    const types = Array.from(dt.types || []);
+    if (types.includes('Files')) return true;
+    const items = Array.from(dt.items || []);
+    return items.some((it) => it.kind === 'file');
+  };
 
   const buildPayload = () => ({
     id: state.id,
+    category: state.category,
     title: state.title,
     author: state.author,
     genre: state.genre,
@@ -288,6 +430,7 @@ export default function BookForm({ onClose }: Props) {
   }, [
     // Only data fields that should trigger save - NOT UI state
     // Note: state.id is NOT included to avoid loop when ID is assigned after first save
+    state.category,
     state.title,
     state.author,
     state.genre,
@@ -397,6 +540,131 @@ export default function BookForm({ onClose }: Props) {
     if (f) set({ cover: f });
   };
 
+  const onDragOverStickerZone = (e: React.DragEvent) => {
+    if (!isFileDrag(e.dataTransfer)) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    setShowStickerDropOverlay(true);
+    const imageDrag = isImageDrag(e.dataTransfer);
+    setStickerDragOver(imageDrag);
+
+    if (stickerDragOverTimeoutRef.current) {
+      window.clearTimeout(stickerDragOverTimeoutRef.current);
+    }
+
+    if (imageDrag) {
+      // DragOver fires continuously; this prevents the UI from getting "stuck" in dragover state.
+      stickerDragOverTimeoutRef.current = window.setTimeout(() => {
+        setStickerDragOver(false);
+        stickerDragOverTimeoutRef.current = null;
+      }, 150) as unknown as number;
+    } else {
+      stickerDragOverTimeoutRef.current = null;
+    }
+  };
+
+  const onDragLeaveStickerZone = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setStickerDragOver(false);
+
+    if (stickerDragOverTimeoutRef.current) {
+      window.clearTimeout(stickerDragOverTimeoutRef.current);
+      stickerDragOverTimeoutRef.current = null;
+    }
+  };
+
+  const onDropStickerZone = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setStickerDragOver(false);
+    setShowStickerDropOverlay(false);
+
+    if (stickerDragOverTimeoutRef.current) {
+      window.clearTimeout(stickerDragOverTimeoutRef.current);
+      stickerDragOverTimeoutRef.current = null;
+    }
+
+    const files = Array.from(e.dataTransfer.files || []).filter(
+      (f) => (f.type || '').startsWith('image/') || looksLikeImageName(f.name || ''),
+    );
+    if (files.length === 0) return;
+
+    const overlay = document.querySelector('.floating-stickers-root') as HTMLElement | null;
+    const overlayRect = overlay?.getBoundingClientRect();
+    const baseX = overlayRect ? e.clientX - overlayRect.left : 40;
+    const baseY = overlayRect ? e.clientY - overlayRect.top : 600;
+
+    const urls = await Promise.all(files.map((f) => stickerFileToBase64(f)));
+
+    setState((prev) => {
+      const maxZ = Math.max(1000, ...(prev.stickers || []).map((s) => s.z || 0));
+      const created: StickerType[] = urls.map((url, i) => ({
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+        url,
+        x: Math.max(0, baseX - 80 + i * 20),
+        y: Math.max(0, baseY - 80 + i * 20),
+        width: 160,
+        height: 160 * 1.33,
+        angle: 0,
+        z: maxZ + 1 + i,
+      }));
+      return { ...prev, stickers: [...(prev.stickers || []), ...created] };
+    });
+  };
+
+  useEffect(() => {
+    return () => {
+      if (stickerDragOverTimeoutRef.current) {
+        window.clearTimeout(stickerDragOverTimeoutRef.current);
+        stickerDragOverTimeoutRef.current = null;
+      }
+      if (stickerGlobalDragTimeoutRef.current) {
+        window.clearTimeout(stickerGlobalDragTimeoutRef.current);
+        stickerGlobalDragTimeoutRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleWindowDragOver = (e: DragEvent) => {
+      if (!isFileDrag(e.dataTransfer)) return;
+      e.preventDefault();
+      setShowStickerDropOverlay(true);
+      setStickerDragOver(isImageDrag(e.dataTransfer));
+
+      if (stickerGlobalDragTimeoutRef.current) {
+        window.clearTimeout(stickerGlobalDragTimeoutRef.current);
+      }
+      // If the drag leaves the window or stops firing events, hide the overlay.
+      stickerGlobalDragTimeoutRef.current = window.setTimeout(() => {
+        setShowStickerDropOverlay(false);
+        setStickerDragOver(false);
+        stickerGlobalDragTimeoutRef.current = null;
+      }, 500) as unknown as number;
+    };
+
+    const handleWindowDrop = () => {
+      setShowStickerDropOverlay(false);
+      setStickerDragOver(false);
+      if (stickerGlobalDragTimeoutRef.current) {
+        window.clearTimeout(stickerGlobalDragTimeoutRef.current);
+        stickerGlobalDragTimeoutRef.current = null;
+      }
+    };
+
+    window.addEventListener('dragover', handleWindowDragOver);
+    window.addEventListener('dragenter', handleWindowDragOver);
+    window.addEventListener('drop', handleWindowDrop);
+    return () => {
+      window.removeEventListener('dragover', handleWindowDragOver);
+      window.removeEventListener('dragenter', handleWindowDragOver);
+      window.removeEventListener('drop', handleWindowDrop);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <div className={`bookform-page ${state.closing ? 'exiting' : 'entering'}`}>
       <div
@@ -435,87 +703,93 @@ export default function BookForm({ onClose }: Props) {
               <Row>
                 <Col md={12}>
                   <div className="mb-2 d-flex align-items-center">
-                    <label className="bookform-label fs-6 me-3">Title: </label>
+                    <label className="bookform-label fs-5 me-3">Title: </label>
                     <ColoredInput
                       name="title"
                       value={state.title}
                       onChange={(v) => set({ title: v })}
-                      color={state.inputColors?.title || '#ffffff'}
+                      color={state.inputColors?.title || 'rgb(0, 206, 209)'}
                       onColorChange={(c) => setInputColor('title', c)}
+                      style={{ fontSize: "20px"}}
                     />
                   </div>
                 </Col>
 
                 <Col md={7}>
                   <div className="mb-2 d-flex align-items-center">
-                    <label className="bookform-label fs-6 me-3">Autor: </label>
+                    <label className="bookform-label fs-5 me-3">Autor: </label>
                     <ColoredInput
                       name="author"
+                      showColorIcon={false}
                       value={state.author}
                       onChange={(v) => set({ author: v })}
-                      color={state.inputColors?.author || '#ffffff'}
+                      color={state.inputColors?.title || 'rgb(0, 206, 209)'}
                       onColorChange={(c) => setInputColor('author', c)}
                     />
                   </div>
                 </Col>
                 <Col md={5}>
                   <div className="mb-2 d-flex align-items-center">
-                    <label className="bookform-label fs-6 me-3">Genre: </label>
+                    <label className="bookform-label fs-5 me-3">Genre: </label>
                     <ColoredInput
                       name="genre"
                       value={state.genre}
+                      showColorIcon={false}
                       onChange={(v) => set({ genre: v })}
-                      color={state.inputColors?.genre || '#ffffff'}
+                      color={state.inputColors?.title || 'rgb(0, 206, 209)'}
                       onColorChange={(c) => setInputColor('genre', c)}
                     />
                   </div>
                 </Col>
                 <Col md={7}>
                   <div className="mb-2 d-flex align-items-center">
-                    <label className="bookform-label fs-6 me-3">
+                    <label className="bookform-label fs-5 me-3">
                       Publish&nbsp;Date:{' '}
                     </label>
                     <ColoredInput
                       name="publishDate"
                       type="date"
                       value={state.publishDate}
+                      showColorIcon={false}
                       onChange={(v) => set({ publishDate: v })}
-                      color={state.inputColors?.publishDate || '#ffffff'}
+                      color={state.inputColors?.title || 'rgb(0, 206, 209)'}
                       onColorChange={(c) => setInputColor('publishDate', c)}
                     />
                   </div>
                 </Col>
                 <Col md={5}>
                   <div className="mb-2 d-flex align-items-center">
-                    <label className="bookform-label fs-6 me-3">Pages: </label>
+                    <label className="bookform-label fs-5 me-3">Pages: </label>
                     <ColoredInput
                       name="pages"
                       type="number"
                       value={state.pages}
+                      showColorIcon={false}
                       onChange={(v) => set({ pages: v })}
-                      color={state.inputColors?.pages || '#ffffff'}
+                      color={state.inputColors?.title || 'rgb(0, 206, 209)'}
                       onColorChange={(c) => setInputColor('pages', c)}
                     />
                   </div>
                 </Col>
                 <Col md={12}>
                   <div className="mb-2 d-flex align-items-center">
-                    <label className="bookform-label fs-6 me-3">
+                    <label className="bookform-label fs-5 me-3">
                       End&nbsp;Date:{' '}
                     </label>
                     <ColoredInput
                       name="endDate"
                       type="date"
                       value={state.endDate}
+                      showColorIcon={false}
                       onChange={(v) => set({ endDate: v })}
-                      color={state.inputColors?.endDate || '#ffffff'}
+                      color={state.inputColors?.title || 'rgb(0, 206, 209)'}
                       onColorChange={(c) => setInputColor('endDate', c)}
                     />
                   </div>
                 </Col>
                 <Col md={12}>
                   <div className="mb-2 d-flex field-underline align-items-center">
-                    <label className="bookform-label fs-6 ">Format: </label>
+                    <label className="bookform-label fs-5">Format: </label>
                     <div className="format-group d-flex align-self-center">
                       <div className="form-check d-flex align-items-center ">
                         <Input
@@ -526,7 +800,7 @@ export default function BookForm({ onClose }: Props) {
                           onChange={() => set({ format: 'hardcover' })}
                         />
                         <label
-                          className="form-check-label ms-2 fmt-label mt-1"
+                          className="form-check-label ms-2 fmt-label mt-1 fs-5"
                           htmlFor="fmt-hardcover"
                         >
                           Hardcover
@@ -541,7 +815,7 @@ export default function BookForm({ onClose }: Props) {
                           onChange={() => set({ format: 'paperback' })}
                         />
                         <label
-                          className="form-check-label ms-2 fmt-label mt-1"
+                          className="form-check-label ms-2 fmt-label mt-1 fs-5"
                           htmlFor="fmt-paperback"
                         >
                           Paperback
@@ -556,7 +830,7 @@ export default function BookForm({ onClose }: Props) {
                           onChange={() => set({ format: 'ebook' })}
                         />
                         <label
-                          className="form-check-label ms-2 fmt-label mt-1"
+                          className="form-check-label ms-2 fmt-label mt-1 fs-5"
                           htmlFor="fmt-ebook"
                         >
                           E-book
@@ -571,7 +845,7 @@ export default function BookForm({ onClose }: Props) {
                           onChange={() => set({ format: 'audiobook' })}
                         />
                         <label
-                          className="form-check-label ms-2 fmt-label mt-1"
+                          className="form-check-label ms-2 fmt-label mt-1 fs-5"
                           htmlFor="fmt-audio"
                         >
                           Audiobook
@@ -583,18 +857,18 @@ export default function BookForm({ onClose }: Props) {
               </Row>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <label className="bookform-label fs-6 me-3">Summary</label>
+                <label className="bookform-label fs-5 me-3">Summary</label>
               </div>
               <div className="mb-2">
                 <ColoredInput
                   name="summary"
                   textarea
                   value={state.summary}
-                  defaultHeight={300}
+                  defaultHeight={200}
                   savedHeight={state.summaryHeight}
                   onHeightChange={(h) => set({ summaryHeight: h })}
                   onChange={(v) => set({ summary: v })}
-                  color={state.inputColors?.summary || state.summaryColor || '#ffffff'}
+                  color={state.inputColors?.summary || state.summaryColor || 'rgb(220, 220, 170)'}
                   onColorChange={(c) => { setInputColor('summary', c); set({ summaryColor: c }); }}
                 />
               </div>
@@ -646,7 +920,7 @@ export default function BookForm({ onClose }: Props) {
             </Col>
           </Row>
           <label className="w-100 text-center bookform-label fs-5">
-            Book Review
+            What do you think about this book?
           </label>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 6 }}>
             <label className="bookform-label fs-6 me-3" style={{ marginRight: 8, display: 'none' }}>Book Review color</label>
@@ -656,17 +930,18 @@ export default function BookForm({ onClose }: Props) {
               <ColoredInput
                 name="bookReview"
                 textarea
+                defaultHeight={280}
                 value={state.bookReview}
                 savedHeight={state.bookReviewHeight}
                 onHeightChange={(h) => set({ bookReviewHeight: h })}
                 onChange={(v) => set({ bookReview: v })}
-                color={state.inputColors?.bookReview || state.bookReviewColor || '#ffffff'}
+                color={state.inputColors?.bookReview || state.bookReviewColor || 'rgb(77, 201, 176)'}
                 onColorChange={(c) => { setInputColor('bookReview', c); set({ bookReviewColor: c }); }}
               />
             </div>
           <Row className="mt-3">
             <Col md={6}>
-              <label className="bookform-label fs-6 me-3">
+              <label className="bookform-label fs-5 me-3">
                 How did I feel when reading this book?
               </label>
               <div className="mb-2 d-flex field-underline"></div>
@@ -678,22 +953,22 @@ export default function BookForm({ onClose }: Props) {
                   name="dataAdditional"
                   textarea
                   value={state.dataAdditional}
-                  defaultHeight={400}
+                  defaultHeight={280}
                   savedHeight={state.dataAdditionalHeight}
                   onHeightChange={(h) => set({ dataAdditionalHeight: h })}
                   onChange={(v) => set({ dataAdditional: v })}
-                  color={state.inputColors?.dataAdditional || state.dataAdditionalColor || '#ffffff'}
+                  color={state.inputColors?.dataAdditional || state.dataAdditionalColor || 'rgb(206, 136, 94)'}
                   onColorChange={(c) => { setInputColor('dataAdditional', c); set({ dataAdditionalColor: c }); }}
                 />
               </div>
             </Col>
             <Col md={6}>
-              <label className="bookform-label fs-6 me-3">Book Ratings</label>
+              <label className="bookform-label fs-5 me-3">Book Ratings</label>
               <div className="mb-2 d-flex field-underline"></div>
               <div className="field-underline d-flex flex-column align-items-center">
                 <Row className="align-items-center w-100 p-0">
                   <Col sm={4}>
-                    <label className="bookform-label fs-6">Content</label>
+                    <label className="bookform-label fs-5">Content</label>
                   </Col>
                   <Col sm={6} className="d-flex align-items-center">
                     <div
@@ -708,7 +983,7 @@ export default function BookForm({ onClose }: Props) {
                         onChange={(value: number) =>
                           set({ content: Number(value) })
                         }
-                        size={20}
+                        size={25}
                         gap={12}
                         color1="#cccccc"
                         color2="#ffd700"
@@ -718,19 +993,19 @@ export default function BookForm({ onClose }: Props) {
                   <Col sm={2} className="d-flex">
                     <Input
                       type="number"
-                      value={state.content}
-                      onChange={(e: any) =>
-                        set({ content: e.target.value })
-                      }
+                      value={ratingInputValue('content', state.content)}
+                      onFocus={handleRatingFocus('content')}
+                      onChange={handleRatingChange('content')}
+                      onBlur={handleRatingBlur('content')}
                       className="rating-input input-line"
                     />
                   </Col>
                 </Row>
               </div>
               <div className="field-underline d-flex flex-column align-items-center">
-                <Row className="align-items-center w-100">
+                <Row className="align-items-center w-100 pt-1">
                   <Col sm={4}>
-                    <label className="bookform-label fs-6 no-wrap">
+                    <label className="bookform-label fs-5 no-wrap">
                       Writing&nbsp;Style
                     </label>
                   </Col>
@@ -747,7 +1022,7 @@ export default function BookForm({ onClose }: Props) {
                         onChange={(value: number) =>
                           set({ writingStyle: Number(value) })
                         }
-                        size={20}
+                        size={25}
                         gap={12}
                         color1="#cccccc"
                         color2="#ffd700"
@@ -757,19 +1032,19 @@ export default function BookForm({ onClose }: Props) {
                   <Col sm={2} className="d-flex">
                     <Input
                       type="number"
-                      value={state.writingStyle}
-                      onChange={(e: any) =>
-                        set({ writingStyle: e.target.value })
-                      }
+                      value={ratingInputValue('writingStyle', state.writingStyle)}
+                      onFocus={handleRatingFocus('writingStyle')}
+                      onChange={handleRatingChange('writingStyle')}
+                      onBlur={handleRatingBlur('writingStyle')}
                       className="rating-input input-line"
                     />
                   </Col>
                 </Row>
               </div>
               <div className="field-underline d-flex flex-column align-items-center">
-                <Row className="align-items-center w-100">
+                <Row className="align-items-center w-100 pt-1">
                   <Col sm={4}>
-                    <label className="bookform-label fs-6 no-wrap">
+                    <label className="bookform-label fs-5 no-wrap">
                       Readability
                     </label>
                   </Col>
@@ -786,7 +1061,7 @@ export default function BookForm({ onClose }: Props) {
                         onChange={(value: number) =>
                           set({ readability: Number(value) })
                         }
-                        size={20}
+                        size={25}
                         gap={12}
                         color1="#cccccc"
                         color2="#ffd700"
@@ -796,19 +1071,19 @@ export default function BookForm({ onClose }: Props) {
                   <Col sm={2} className="d-flex">
                     <Input
                       type="number"
-                      value={state.readability}
-                      onChange={(e: any) =>
-                        set({ readability: e.target.value })
-                      }
+                      value={ratingInputValue('readability', state.readability)}
+                      onFocus={handleRatingFocus('readability')}
+                      onChange={handleRatingChange('readability')}
+                      onBlur={handleRatingBlur('readability')}
                       className="rating-input input-line"
                     />
                   </Col>
                 </Row>
               </div>
               <div className="field-underline d-flex flex-column align-items-center">
-                <Row className="align-items-center w-100">
+                <Row className="align-items-center w-100 pt-1">
                   <Col sm={4}>
-                    <label className="bookform-label fs-6 no-wrap">
+                    <label className="bookform-label fs-5 no-wrap">
                       Plot&nbsp;Development
                     </label>
                   </Col>
@@ -825,7 +1100,7 @@ export default function BookForm({ onClose }: Props) {
                         onChange={(value: number) =>
                           set({ plotDevelopment: Number(value) })
                         }
-                        size={20}
+                        size={25}
                         gap={12}
                         color1="#cccccc"
                         color2="#ffd700"
@@ -835,19 +1110,19 @@ export default function BookForm({ onClose }: Props) {
                   <Col sm={2} className="d-flex">
                     <Input
                       type="number"
-                      value={state.plotDevelopment}
-                      onChange={(e: any) =>
-                        set({ plotDevelopment: e.target.value })
-                      }
+                      value={ratingInputValue('plotDevelopment', state.plotDevelopment)}
+                      onFocus={handleRatingFocus('plotDevelopment')}
+                      onChange={handleRatingChange('plotDevelopment')}
+                      onBlur={handleRatingBlur('plotDevelopment')}
                       className="rating-input input-line"
                     />
                   </Col>
                 </Row>
               </div>
               <div className="field-noline d-flex flex-column align-items-center">
-                <Row className="align-items-center w-100">
+                <Row className="align-items-center w-100 pt-1">
                   <Col sm={4}>
-                    <label className="bookform-label fs-6 no-wrap">
+                    <label className="bookform-label fs-5 no-wrap">
                       Characters
                     </label>
                   </Col>
@@ -867,7 +1142,7 @@ export default function BookForm({ onClose }: Props) {
                         onChange={(value: number) =>
                           set({ characters: Number(value) })
                         }
-                        size={20}
+                        size={25}
                         gap={12}
                         color1="#cccccc"
                         color2="#ffd700"
@@ -877,22 +1152,33 @@ export default function BookForm({ onClose }: Props) {
                   <Col sm={2} className="d-flex">
                     <Input
                       type="number"
-                      value={state.characters}
-                      onChange={(e: any) =>
-                        set({ characters: e.target.value })
-                      }
+                      value={ratingInputValue('characters', state.characters)}
+                      onFocus={handleRatingFocus('characters')}
+                      onChange={handleRatingChange('characters')}
+                      onBlur={handleRatingBlur('characters')}
                       className="rating-input input-line"
                     />
                   </Col>
                 </Row>
               </div>
 
-              <div className="mb-2 textarea-box" style={{ height: 350 }}>
-                
-              </div>
             </Col>
           </Row>
         </div>
+        {showStickerDropOverlay && (
+          <div
+            className={`sticker-drop-overlay ${stickerDragOver ? 'dragover' : ''}`}
+          >
+            <div
+              className="sticker-drop-overlay-box"
+              onDragOver={onDragOverStickerZone}
+              onDragLeave={onDragLeaveStickerZone}
+              onDrop={onDropStickerZone}
+            >
+              Drop sticker here
+            </div>
+          </div>
+        )}
         {/* Floating stickers synced to this BookForm's state */}
         <FloatingStickers onChange={handleStickersChange} initialStickers={state.stickers} />
       </div>

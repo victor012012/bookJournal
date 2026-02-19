@@ -18,6 +18,11 @@ export default class MenuBuilder {
     this.mainWindow = mainWindow;
   }
 
+  private enforceLockedZoom() {
+    const LOCKED_ZOOM = 0.7;
+    this.mainWindow.webContents.zoomFactor = LOCKED_ZOOM;
+  }
+
   buildMenu(): Menu {
     if (
       process.env.NODE_ENV === 'development' ||
@@ -107,23 +112,21 @@ export default class MenuBuilder {
           label: 'Zoom In',
           accelerator: 'Command+Plus',
           click: () => {
-            const cur = this.mainWindow.webContents.zoomFactor || 1;
-            this.mainWindow.webContents.zoomFactor = Math.min(cur + 0.1, 5);
+            this.enforceLockedZoom();
           },
         },
         {
           label: 'Zoom Out',
           accelerator: 'Command+-',
           click: () => {
-            const cur = this.mainWindow.webContents.zoomFactor || 1;
-            this.mainWindow.webContents.zoomFactor = Math.max(cur - 0.1, 0.2);
+            this.enforceLockedZoom();
           },
         },
         {
           label: 'Actual Size',
           accelerator: 'Command+0',
           click: () => {
-            this.mainWindow.webContents.zoomFactor = 1;
+            this.enforceLockedZoom();
           },
         },
         {
@@ -156,23 +159,21 @@ export default class MenuBuilder {
           label: 'Zoom In',
           accelerator: 'Command+Plus',
           click: () => {
-            const cur = this.mainWindow.webContents.zoomFactor || 1;
-            this.mainWindow.webContents.zoomFactor = Math.min(cur + 0.1, 5);
+            this.enforceLockedZoom();
           },
         },
         {
           label: 'Zoom Out',
           accelerator: 'Command+-',
           click: () => {
-            const cur = this.mainWindow.webContents.zoomFactor || 1;
-            this.mainWindow.webContents.zoomFactor = Math.max(cur - 0.1, 0.2);
+            this.enforceLockedZoom();
           },
         },
         {
           label: 'Actual Size',
           accelerator: 'Command+0',
           click: () => {
-            this.mainWindow.webContents.zoomFactor = 1;
+            this.enforceLockedZoom();
           },
         },
         {
@@ -266,23 +267,21 @@ export default class MenuBuilder {
                   label: '&Zoom In',
                   accelerator: 'Ctrl+Plus',
                   click: () => {
-                    const cur = this.mainWindow.webContents.zoomFactor || 1;
-                    this.mainWindow.webContents.zoomFactor = Math.min(cur + 0.1, 5);
+                    this.enforceLockedZoom();
                   },
                 },
                 {
                   label: 'Zoom &Out',
                   accelerator: 'Ctrl+-',
                   click: () => {
-                    const cur = this.mainWindow.webContents.zoomFactor || 1;
-                    this.mainWindow.webContents.zoomFactor = Math.max(cur - 0.1, 0.2);
+                    this.enforceLockedZoom();
                   },
                 },
                 {
                   label: '&Actual Size',
                   accelerator: 'Ctrl+0',
                   click: () => {
-                    this.mainWindow.webContents.zoomFactor = 1;
+                    this.enforceLockedZoom();
                   },
                 },
                 {
@@ -314,23 +313,21 @@ export default class MenuBuilder {
                   label: '&Zoom In',
                   accelerator: 'Ctrl+Plus',
                   click: () => {
-                    const cur = this.mainWindow.webContents.zoomFactor || 1;
-                    this.mainWindow.webContents.zoomFactor = Math.min(cur + 0.1, 5);
+                    this.enforceLockedZoom();
                   },
                 },
                 {
                   label: 'Zoom &Out',
                   accelerator: 'Ctrl+-',
                   click: () => {
-                    const cur = this.mainWindow.webContents.zoomFactor || 1;
-                    this.mainWindow.webContents.zoomFactor = Math.max(cur - 0.1, 0.2);
+                    this.enforceLockedZoom();
                   },
                 },
                 {
                   label: '&Actual Size',
                   accelerator: 'Ctrl+0',
                   click: () => {
-                    this.mainWindow.webContents.zoomFactor = 1;
+                    this.enforceLockedZoom();
                   },
                 },
                 {

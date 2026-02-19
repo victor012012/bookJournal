@@ -150,7 +150,8 @@ export default function ColoredInput({
             ...style,
             width: inputWidth,
             resize: 'vertical',
-            overflowY: 'auto',
+            overflowY: 'hidden',
+            fontSize: '18px',
           } as React.CSSProperties}
         />
       ) : (
@@ -161,7 +162,7 @@ export default function ColoredInput({
             const v = type === 'number' ? (e.target.value === '' ? '' : Number(e.target.value)) : e.target.value;
             onChange(v as any);
           }}
-          className={`w-100`}
+          className={`w-100 fs-5`}
           placeholder={placeholder}
           style={{
             ...style,
@@ -197,6 +198,7 @@ export default function ColoredInput({
               padding: 0,
               margin: 0,
               background: 'transparent',
+              ...style,
             } as React.CSSProperties}
             value={color}
             onChange={(e) => handleColorChange(e.target.value)}

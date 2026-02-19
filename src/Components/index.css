@@ -20,6 +20,7 @@
 }
 
 .library-scroll {
+
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.45) transparent;
 }
@@ -49,13 +50,17 @@
 
 .library-page {
   position: relative;
-  background: radial-gradient(1200px 600px at 10% -10%, rgba(86, 156, 214, 0.25), transparent 60%),
-    radial-gradient(900px 500px at 95% 10%, rgba(255, 215, 0, 0.18), transparent 55%),
-    radial-gradient(900px 600px at 50% 90%, rgba(67, 233, 123, 0.16), transparent 60%);
+  background: rgb(40, 41, 54);
+}
+
+.library-content {
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
 }
 
 .library-header {
-  padding: 14px 10px;
+  padding: 12px 10px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 18px;
   background: linear-gradient(120deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
@@ -64,8 +69,8 @@
 
 .library-title {
   margin: 0;
-  letter-spacing: 2px;
-  font-size: 1.6rem;
+  letter-spacing: 1px;
+  font-size: 2.5rem;
   color: white;
 }
 
@@ -78,7 +83,7 @@
 }
 
 .library-add-btn {
-  width: 58px;
+  width: 230px;
   height: 58px;
   padding: 0;
   border-radius: 16px;
@@ -89,6 +94,23 @@
   align-items: center;
   justify-content: center;
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.library-add-btn-category {
+  width: 150px;
+  height: 58px;
+  padding: 0;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  background: linear-gradient(140deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.04));
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.library-add-btn-category.active {
+  border-color: white;
 }
 
 .library-add-btn:hover {
@@ -102,13 +124,18 @@
   color: white;
   line-height: 1;
 }
+.library-add-icon-category {
+  font-size: 1.5rem;
+  color: white;
+  line-height: 1;
+}
 
 .library-grid {
   gap: 0px 0 !important;
 }
 
 .library-card-col {
-  padding: 16px 12px;
+  padding: 10px 5px;
 }
 
 .library-card {
@@ -133,7 +160,7 @@
 
 .library-cover {
   margin-left: 100px;
-  width: 80%;
+  width: 69%;
   margin: 0 auto;
   aspect-ratio: 3 / 4;
   border-radius: 14px;
@@ -145,28 +172,28 @@
 .library-cover-img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
-  display: block;
-}
+  object-fit: fill;
+    display: block;
+  }
 
 .library-field-row {
   width: 100%;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   gap: 10px;
 }
 
 .library-field-label {
+  max-width: 50px;
   margin: 0;
   font-size: 0.78rem;
-  text-transform: uppercase;
   letter-spacing: 1px;
   color: rgba(255, 255, 255, 0.7);
 }
 
 .library-field {
-  max-width: 140px;
+  max-width: 250px;
   font-size: 0.8rem !important;
   padding: 6px 4px !important;
 }
@@ -201,7 +228,7 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 20px 0 40px;
+  padding: 5px 0 20px;
 }
 
 .pagination-btn {
@@ -210,6 +237,7 @@
   border-radius: 8px;
   border: 1px solid rgba(255, 255, 255, 0.15);
   background: rgba(255, 255, 255, 0.05);
+  position: relative;
   color: rgba(255, 255, 255, 0.8);
   font-size: 14px;
   cursor: pointer;
@@ -235,6 +263,60 @@
   cursor: not-allowed;
 }
 
+/* Sticker drop zone inside BookForm */
+.sticker-drop-zone {
+  width: 100%;
+  height: 100%;
+  min-height: 200px;
+  border: 2px dashed rgba(255, 255, 255, 0.35);
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.04);
+  user-select: none;
+}
+
+.sticker-drop-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 99998;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 800px;
+  pointer-events: none;
+}
+
+.sticker-drop-overlay-box {
+  width: min(1200px, calc(100% - 48px));
+  height: 650px;
+  border: 3px dashed rgba(255, 255, 255, 0.35);
+  border-radius: 18px;
+  background: rgba(0, 0, 0, 0.35);
+  display: grid;
+  place-items: center;
+  text-align: center;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  color: rgba(255, 255, 255, 0.85);
+  pointer-events: auto;
+}
+
+.sticker-drop-overlay.dragover .sticker-drop-overlay-box {
+  border-color: rgba(255, 255, 255, 0.7);
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.sticker-drop-zone.dragover {
+  border-color: rgba(255, 255, 255, 0.85);
+  color: rgba(255, 255, 255, 0.95);
+  background: rgba(255, 255, 255, 0.08);
+}
+
 /* Book form overlay styles */
 .bookform-page {
   width: 100%;
@@ -254,6 +336,7 @@
   border-radius: 14px;
   padding: 28px;
   box-shadow: 0 20px 60px rgba(0,0,0,0.45);
+  position: relative;
 }
 
 /* Small color pickers used in BookForm */
@@ -372,11 +455,11 @@
 }
 
 .bookform-cover-img-preview {
-  width: 100%;
+  width: 70%;
   aspect-ratio: 3 / 4;
   border-radius: 10px;
   aspect-ratio: 3 / 4;
-  object-fit: cover;
+  object-fit: fill;
   border-radius: 10px;
   display: block;
 }
@@ -434,7 +517,7 @@
   align-items: center;
   justify-content: center;
   position: relative;
-  border: 1px dashed rgba(255,255,255,0.04);
+  border: 1px dashed rgba(255, 255, 255, 0.004);
   padding: 8px;
 }
 
@@ -444,7 +527,7 @@
 }
 
 .bookform-cover-empty {
-  width: 100%;
+  width: 70%;
   aspect-ratio: 3 / 4;
   border-radius: 10px;
   background: rgba(255,255,255,0.03);

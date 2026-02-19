@@ -8,12 +8,13 @@
   height: 100vh;
   min-width: 0;
   overflow: hidden;
+  background: rgb(40, 41, 54) !important;
 }
 body {
   position: relative;
   color: white !important;
   height: 100vh;
-  background: #1C2A44 !important;
+  background: rgb(40, 41, 54) !important;
   font-family: "Cascadia Code", sans-serif !important;
   overflow-y: hidden;
 }
@@ -21,6 +22,7 @@ body {
 html,
 #root {
   height: 100%;
+  background: rgb(40, 41, 54) !important;
 }
 
 button {

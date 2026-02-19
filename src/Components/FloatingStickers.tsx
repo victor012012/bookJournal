@@ -77,13 +77,19 @@ export default function FloatingStickers({ initialStickers, onChange }: Props = 
   const prevInitialRef = useRef<string>('');
   useEffect(() => {
     const newJson = JSON.stringify(initialStickers || []);
-    // Only update if initialStickers changed AND our local stickers are empty
-    // This handles the case where BookForm loads data after FloatingStickers mounts
-    if (newJson !== prevInitialRef.current && stickers.length === 0 && (initialStickers?.length || 0) > 0) {
-      setStickers(initialStickers || []);
+    if (newJson === prevInitialRef.current) return;
+
+    const incoming = initialStickers || [];
+    if (incoming.length > 0) {
+      setStickers((prev) => {
+        if (prev.length === 0) return incoming;
+        const existingIds = new Set(prev.map((s) => s.id));
+        const missing = incoming.filter((s) => !existingIds.has(s.id));
+        return missing.length > 0 ? [...prev, ...missing] : prev;
+      });
     }
     prevInitialRef.current = newJson;
-  }, [initialStickers, stickers.length]);
+  }, [initialStickers]);
 
   const addStickersFromFiles = async (files: FileList | null) => {
     if (!files) return;
@@ -94,7 +100,7 @@ export default function FloatingStickers({ initialStickers, onChange }: Props = 
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
         url,
         x: 40 + i * 30,
-        y: 40 + i * 30,
+        y: 600 + i * 30,
         width: 160,
         height: 160 * 1.33,
         angle: 0,
@@ -286,7 +292,7 @@ export default function FloatingStickers({ initialStickers, onChange }: Props = 
           }}
           onPointerDown={(e) => onPointerDown(e, st.id)}
         >
-          <img src={st.url} alt="sticker" draggable={false} />
+          <img src={st.url} alt="sticker" draggable={false} style={{ objectFit: 'fill' }} />
           {/* Delete button */}
           <button
             className="sticker-delete-btn"

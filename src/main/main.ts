@@ -116,6 +116,13 @@ const createWindow = async () => {
     await installExtensions();
   }
 
+  const LOCKED_ZOOM = 0.7;
+  const enforceLockedZoom = (win: BrowserWindow | null, alwaysLog = false) => {
+    if (!win) return;
+    const cur = win.webContents.zoomFactor || 1;
+    win.webContents.zoomFactor = LOCKED_ZOOM;
+  };
+
   const RESOURCES_PATH = app.isPackaged
     ? path.join(process.resourcesPath, 'assets')
     : path.join(__dirname, '../../assets');
@@ -128,7 +135,8 @@ const createWindow = async () => {
     show: false,
     width: 1090,
     minWidth: 1090,
-    height: 950,
+    height: 1160,
+    autoHideMenuBar: true,
     icon: getAssetPath('icon.png'),
     webPreferences: {
       preload: app.isPackaged
@@ -136,51 +144,64 @@ const createWindow = async () => {
         : path.join(__dirname, '../../.erb/dll/preload.js'),
     },
   });
-  mainWindow.webContents.setVisualZoomLevelLimits(1, 5);
-  mainWindow.webContents.on('before-input-event', (_, input:any) => {
-    if (input.control && input.type === 'mouseWheel' && mainWindow) {
-      const delta = input.deltaY > 0 ? -0.1 : 0.1;
-      const cur = mainWindow.webContents.zoomFactor || 1;
-      mainWindow.webContents.zoomFactor = Math.min(Math.max(cur + delta, 0.2), 1);
+
+  // Set zoom as early as possible to avoid a visible "jump".
+  mainWindow.webContents.zoomFactor = LOCKED_ZOOM;
+
+  // Block any user-driven zoom attempts (wheel / keyboard). Always enforce 0.7.
+  mainWindow.webContents.on('before-input-event', (event, input: any) => {
+    const isZoomWheel = input.control && input.type === 'mouseWheel';
+    const isZoomShortcut =
+      (input.control || input.meta) &&
+      input.type === 'keyDown' &&
+      (['+', '-', '=', '0'].includes(input.key) ||
+        ['Equal', 'Minus', 'Digit0', 'NumpadAdd', 'NumpadSubtract', 'Numpad0'].includes(
+          input.code,
+        ));
+
+    if (isZoomWheel || isZoomShortcut) {
+      event.preventDefault();
+      enforceLockedZoom(mainWindow);
     }
+  });
+
+  mainWindow.webContents.on('did-finish-load', () => {
+    enforceLockedZoom(mainWindow);
   });
 
   // IPC handlers for renderer-driven zoom control
   ipcMain.handle('zoom-change', (_, delta: number) => {
     const bw = BrowserWindow.getFocusedWindow();
     if (!bw) return false;
-    const cur = bw.webContents.zoomFactor || 1;
-    bw.webContents.zoomFactor = Math.min(Math.max(cur + delta, 0.2), 1);
+    enforceLockedZoom(bw, true);
     return true;
   });
 
   ipcMain.handle('zoom-set', (_, factor: number) => {
     const bw = BrowserWindow.getFocusedWindow();
     if (!bw) return false;
-    bw.webContents.zoomFactor = Math.min(Math.max(factor, 0.2), 1);
+    enforceLockedZoom(bw, true);
     return true;
   });
 
   ipcMain.handle('zoom-in', () => {
     const bw = BrowserWindow.getFocusedWindow();
     if (!bw) return false;
-    const cur = bw.webContents.zoomFactor || 1;
-    bw.webContents.zoomFactor = Math.min(cur + 0.1, 1);
+    enforceLockedZoom(bw, true);
     return true;
   });
 
   ipcMain.handle('zoom-out', () => {
     const bw = BrowserWindow.getFocusedWindow();
     if (!bw) return false;
-    const cur = bw.webContents.zoomFactor || 1;
-    bw.webContents.zoomFactor = Math.max(cur - 0.1, 0.2);
+    enforceLockedZoom(bw, true);
     return true;
   });
 
   ipcMain.handle('zoom-reset', () => {
     const bw = BrowserWindow.getFocusedWindow();
     if (!bw) return false;
-    bw.webContents.zoomFactor = 1;
+    enforceLockedZoom(bw, true);
     return true;
   });
 
@@ -190,6 +211,10 @@ const createWindow = async () => {
     if (!mainWindow) {
       throw new Error('"mainWindow" is not defined');
     }
+
+    // Keep the top menu bar hidden (Windows/Linux). MacOS always has a system menu.
+    mainWindow.setMenuBarVisibility(false);
+
     if (process.env.START_MINIMIZED) {
       mainWindow.minimize();
     } else {
