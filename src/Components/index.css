@@ -108,6 +108,19 @@
   justify-content: center;
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
+.library-add-btn-config {
+  width: 90px;
+  height: 58px;
+  padding: 0;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  background: linear-gradient(140deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.04));
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
 
 .library-add-btn-category.active {
   border-color: white;
@@ -125,9 +138,16 @@
   line-height: 1;
 }
 .library-add-icon-category {
-  font-size: 1.5rem;
+  font-size: 1.2rem;
   color: white;
   line-height: 1;
+}
+
+.library-category-count {
+  margin-top: 6px;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.82rem;
+  letter-spacing: 0.4px;
 }
 
 .library-grid {
@@ -320,7 +340,7 @@
 /* Book form overlay styles */
 .bookform-page {
   width: 100%;
-  min-height: calc(100vh - 48px);
+  min-height: 100vh;
   display: flex;
   align-items: flex-start;
   justify-content: center;
@@ -441,6 +461,17 @@
   justify-content:center;
   color: rgba(255,255,255,0.45);
 }
+.bookform-cover-empty-modal {
+  height: 50 !important;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.03);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color: rgba(255,255,255,0.45);
+}
 
 .bookform-cover-name {
   width: 100%;
@@ -456,6 +487,16 @@
 
 .bookform-cover-img-preview {
   width: 70%;
+  aspect-ratio: 3 / 4;
+  border-radius: 10px;
+  aspect-ratio: 3 / 4;
+  object-fit: fill;
+  border-radius: 10px;
+  display: block;
+}
+.bookform-cover-img-modal {
+  max-height: 50%;
+  width: 100%;
   aspect-ratio: 3 / 4;
   border-radius: 10px;
   aspect-ratio: 3 / 4;
@@ -964,3 +1005,21 @@
 }
 
 .rating-input[aria-hidden="true"] { pointer-events: none; }
+
+.bookform-config-modal-content {
+  background: rgb(40, 41, 54);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.bookform-config-modal-content .modal-header,
+.bookform-config-modal-content .modal-body,
+.bookform-config-modal-content .modal-footer {
+  background: rgb(40, 41, 54);
+  color: white;
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.bookform-config-modal-content .btn-close {
+  filter: invert(1) grayscale(100%);
+}

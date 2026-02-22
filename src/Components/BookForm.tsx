@@ -1,9 +1,21 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Button, Col, Input, Row } from 'reactstrap';
+import { Button, Col, Input, Modal, ModalBody, ModalFooter, ModalHeader, Row } from 'reactstrap';
 import Stars from './Stars';
 import ColoredInput from './ColoredInput';
 import FloatingStickers, { Sticker as StickerType } from './FloatingStickers';
 import './index.css';
+
+type BackgroundConfig = {
+  mode: 'color' | 'image';
+  color: string;
+  image: string | null;
+};
+
+const defaultBackgroundConfig: BackgroundConfig = {
+  mode: 'color',
+  color: '#282936',
+  image: null,
+};
 
 // Compress and convert image File to base64 data URL
 // Resizes to max 800px and compresses as JPEG
@@ -96,6 +108,7 @@ type Props = {
       ebook?: boolean;
       audiobook?: boolean;
     };
+    background?: BackgroundConfig | string;
   };
 };
 
@@ -127,6 +140,7 @@ export default function BookForm({ onClose }: Props) {
           ebook?: boolean;
           audiobook?: boolean;
         };
+        background?: BackgroundConfig | string;
       }
     | undefined;
 
@@ -165,6 +179,7 @@ export default function BookForm({ onClose }: Props) {
     dragging: boolean;
     closing: boolean;
     saveStatus: 'idle' | 'saving' | 'saved';
+    background: BackgroundConfig;
   };
 
   const [state, setState] = useState<State>({
@@ -199,12 +214,16 @@ export default function BookForm({ onClose }: Props) {
     dragging: false,
     closing: false,
     saveStatus: 'idle',
+    background: defaultBackgroundConfig,
   });
+
+  const [isConfigOpen, setIsConfigOpen] = useState(false);
+  const [draftBackground, setDraftBackground] = useState<BackgroundConfig>(defaultBackgroundConfig);
+  const [backgroundDropActive, setBackgroundDropActive] = useState(false);
 
   const [stickerDragOver, setStickerDragOver] = useState(false);
   const [showStickerDropOverlay, setShowStickerDropOverlay] = useState(false);
 
-  
   const set = (patch: Partial<State>) => setState((s) => ({ ...s, ...patch }));
 
   type RatingField =
@@ -313,10 +332,30 @@ export default function BookForm({ onClose }: Props) {
     }
     if ((initialData as any).inputColors) patch.inputColors = (initialData as any).inputColors;
     if ((initialData as any).stickers) patch.stickers = (initialData as any).stickers;
+    if ((initialData as any).background) {
+      const incomingBackground = (initialData as any).background;
+      if (typeof incomingBackground === 'string') {
+        patch.background = {
+          mode: 'color',
+          color: incomingBackground,
+          image: null,
+        };
+      } else {
+        patch.background = {
+          mode:
+            incomingBackground?.mode === 'image' && incomingBackground?.image
+              ? 'image'
+              : 'color',
+          color: incomingBackground?.color || defaultBackgroundConfig.color,
+          image: incomingBackground?.image || null,
+        };
+      }
+    }
     set(patch);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const backgroundInputRef = useRef<HTMLInputElement | null>(null);
   // debounce ref for autosave
   const debounceRef = useRef<number | null>(null);
   const stickerDragOverTimeoutRef = useRef<number | null>(null);
@@ -396,12 +435,18 @@ export default function BookForm({ onClose }: Props) {
     summaryHeight: state.summaryHeight,
     bookReviewHeight: state.bookReviewHeight,
     dataAdditionalHeight: state.dataAdditionalHeight,
+    background: state.background,
   });
 
   // Debounced autosave - watches all data fields (not UI state like dragging, closing, saveStatus)
   useEffect(() => {
     // Skip saving on initial mount or when no meaningful data
-    if (!state.title && !state.author && !state.summary && !state.bookReview) {
+    const hasCustomBackground =
+      state.background.mode !== defaultBackgroundConfig.mode ||
+      state.background.color !== defaultBackgroundConfig.color ||
+      Boolean(state.background.image);
+
+    if (!state.title && !state.author && !state.summary && !state.bookReview && !hasCustomBackground) {
       return;
     }
 
@@ -418,7 +463,6 @@ export default function BookForm({ onClose }: Props) {
         set({ saveStatus: 'saved' });
         setTimeout(() => set({ saveStatus: 'idle' }), 1200);
       } catch (e) {
-        console.error('Auto-save failed', e);
         set({ saveStatus: 'idle' });
       }
       debounceRef.current = null;
@@ -459,6 +503,9 @@ export default function BookForm({ onClose }: Props) {
     state.summaryHeight,
     state.bookReviewHeight,
     state.dataAdditionalHeight,
+    state.background.mode,
+    state.background.color,
+    state.background.image,
   ]);
 
   // Convert cover File to base64 when a File is set
@@ -539,6 +586,178 @@ export default function BookForm({ onClose }: Props) {
     const f = e.dataTransfer.files?.[0];
     if (f) set({ cover: f });
   };
+
+  const openConfigModal = () => {
+    setDraftBackground(state.background || defaultBackgroundConfig);
+    setIsConfigOpen(true);
+  };
+
+  const saveBackground = () => {
+    const normalizedBackground: BackgroundConfig = {
+      mode: draftBackground.mode === 'image' && draftBackground.image ? 'image' : 'color',
+      color: draftBackground.color || defaultBackgroundConfig.color,
+      image: draftBackground.image,
+    };
+    set({ background: normalizedBackground });
+
+    const payloadWithBackground = {
+      ...buildPayload(),
+      background: normalizedBackground,
+    };
+
+    if (window.api?.saveJSON) {
+      window.api.saveJSON(payloadWithBackground).catch((error) => {
+        console.error('Background save failed', error);
+      });
+    }
+
+    setIsConfigOpen(false);
+  };
+
+  const resetBackgroundToDefault = () => {
+    const normalizedBackground: BackgroundConfig = {
+      ...defaultBackgroundConfig,
+    };
+
+    setDraftBackground(normalizedBackground);
+    set({ background: normalizedBackground });
+
+    const payloadWithBackground = {
+      ...buildPayload(),
+      background: normalizedBackground,
+    };
+
+    if (window.api?.saveJSON) {
+      window.api.saveJSON(payloadWithBackground).catch((error) => {
+        console.error('Background reset failed', error);
+      });
+    }
+
+    setIsConfigOpen(false);
+  };
+
+  const clearBackgroundImage = () => {
+    setDraftBackground((prev) => ({
+      ...prev,
+      image: null,
+      mode: 'color',
+    }));
+  };
+
+  const setBackgroundFromFile = async (file: File | null) => {
+    if (!file) return;
+    const base64 = await fileToBase64(file, 1600, 0.8);
+    setDraftBackground((prev) => ({
+      ...prev,
+      image: base64,
+      mode: 'image',
+    }));
+  };
+
+  const onBackgroundImageSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] ?? null;
+    await setBackgroundFromFile(file);
+    e.target.value = '';
+  };
+
+  const onBackgroundDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setBackgroundDropActive(false);
+    const file = e.dataTransfer.files?.[0] ?? null;
+    await setBackgroundFromFile(file);
+  };
+
+  const onBackgroundPickerClick = () => {
+    backgroundInputRef.current?.click();
+  };
+
+  const onBackgroundDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setBackgroundDropActive(true);
+  };
+
+  const onBackgroundDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setBackgroundDropActive(false);
+  };
+
+  const bookFormBackgroundStyle: React.CSSProperties =
+    state.background.mode === 'image' && state.background.image
+      ? {
+          backgroundColor: state.background.color,
+          backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.35), rgba(0, 0, 0, 1)), url(${state.background.image})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
+        }
+      : {
+          background: state.background.color,
+        };
+
+  useEffect(() => {
+    const targets: HTMLElement[] = [
+      document.documentElement,
+      document.body,
+      document.getElementById('root') as HTMLElement,
+      document.querySelector('.app-container') as HTMLElement,
+      document.querySelector('.library-page') as HTMLElement,
+    ].filter(Boolean) as HTMLElement[];
+
+    const properties = [
+      'background',
+      'background-color',
+      'background-image',
+      'background-size',
+      'background-position',
+      'background-repeat',
+      'background-attachment',
+    ] as const;
+
+    const previous = targets.map((el) => ({
+      el,
+      styles: properties.map((prop) => ({
+        prop,
+        value: el.style.getPropertyValue(prop),
+        priority: el.style.getPropertyPriority(prop),
+      })),
+    }));
+
+    if (state.background.mode === 'image' && state.background.image) {
+      targets.forEach((el) => {
+        el.style.setProperty('background-color', state.background.color, 'important');
+        el.style.setProperty(
+          'background-image',
+          `linear-gradient(rgba(0, 0, 0, 0.35), rgba(0, 0, 0, 1)), url(${state.background.image})`,
+          'important',
+        );
+        el.style.setProperty('background-size', 'cover', 'important');
+        el.style.setProperty('background-position', 'center', 'important');
+        el.style.setProperty('background-repeat', 'no-repeat', 'important');
+        el.style.setProperty('background-attachment', 'fixed', 'important');
+      });
+    } else {
+      targets.forEach((el) => {
+        el.style.setProperty('background', state.background.color, 'important');
+        el.style.removeProperty('background-image');
+        el.style.removeProperty('background-size');
+        el.style.removeProperty('background-position');
+        el.style.removeProperty('background-repeat');
+        el.style.removeProperty('background-attachment');
+      });
+    }
+
+    return () => {
+      previous.forEach(({ el, styles }) => {
+        styles.forEach(({ prop, value, priority }) => {
+          if (value) el.style.setProperty(prop, value, priority);
+          else el.style.removeProperty(prop);
+        });
+      });
+    };
+  }, [state.background]);
 
   const onDragOverStickerZone = (e: React.DragEvent) => {
     if (!isFileDrag(e.dataTransfer)) return;
@@ -666,7 +885,12 @@ export default function BookForm({ onClose }: Props) {
   }, []);
 
   return (
-    <div className={`bookform-page ${state.closing ? 'exiting' : 'entering'}`}>
+    <div className={`bookform-page ${state.closing ? 'exiting' : 'entering'}`} style={bookFormBackgroundStyle}>
+      <div className="position-fixed top-0 end-0 p-3" style={{ zIndex: 1050 }}>
+        <Button color="transparent" className="library-add-btn-config" onClick={openConfigModal}>
+          <span className="library-add-icon-category">⚙️</span>
+        </Button>
+      </div>
       <div
         className={`bookform-container ${state.closing ? 'exiting' : 'entering'}`}
         onAnimationEnd={onAnimationEnd}
@@ -1183,6 +1407,108 @@ export default function BookForm({ onClose }: Props) {
         {/* Floating stickers synced to this BookForm's state */}
         <FloatingStickers onChange={handleStickersChange} initialStickers={state.stickers} />
       </div>
+
+      <Modal
+        isOpen={isConfigOpen}
+        toggle={() => setIsConfigOpen(false)}
+        centered
+        contentClassName="bookform-config-modal-content"
+      >
+        <ModalHeader toggle={() => setIsConfigOpen(false)}>Config Background</ModalHeader>
+        <ModalBody>
+          <div className="d-flex flex-column gap-3">
+            <div className='d-flex gap-2 justify-content-start align-items-center pe-3'>
+              <label className="form-label">Color</label>
+              <Input
+                type="color"
+                value={draftBackground?.color || "rgb(40, 41, 54)"}
+                style={{height:50}}
+                onChange={(e) =>
+                  setDraftBackground((prev) => ({
+                    ...prev,
+                    color: e.target.value,
+                    mode: 'color',
+                  }))
+                }
+              />
+            </div>
+
+            <div>
+              <label className="form-label">Imagen</label>
+              <div
+                className={`bookform-cover-placeholder mt-1 h-50 ${backgroundDropActive ? 'dragging' : ''}`}
+                onClick={onBackgroundPickerClick}
+                onDragOver={onBackgroundDragOver}
+                onDragLeave={onBackgroundDragLeave}
+                onDrop={onBackgroundDrop}
+                role="button"
+              >
+                {draftBackground.image ? (
+                  <img
+                    src={draftBackground.image}
+                    alt="background preview"
+                    className="bookform-cover-img-modal"
+                    style={{height:"300px"}}
+                  />
+                ) : (
+                  <div className="bookform-cover-empty-modal" style={{ height:"300px"}}>
+                    Drop or click background image here
+                  </div>
+                )}
+              </div>
+              <input
+                ref={backgroundInputRef}
+                type="file"
+                accept="image/*"
+                onChange={onBackgroundImageSelected}
+                style={{ display: 'none' }}
+              />
+
+            </div>
+
+            <div className="d-flex gap-2 pt-2">
+              <Button
+              style={{height:60, width:100}}
+                color={draftBackground.mode === 'color' ? 'primary' : 'secondary'}
+                size="sm"
+                onClick={() =>
+                  setDraftBackground((prev) => ({
+                    ...prev,
+                    mode: 'color',
+                  }))
+                }
+              >
+                Use color
+              </Button>
+              <Button
+              style={{height:60, width:100}}
+                color={draftBackground.mode === 'image' ? 'primary' : 'secondary'}
+                size="sm"
+                disabled={!draftBackground.image}
+                onClick={() =>
+                  setDraftBackground((prev) => ({
+                    ...prev,
+                    mode: 'image',
+                  }))
+                }
+              >
+                Use Image
+              </Button>
+            </div>
+          </div>
+        </ModalBody>
+        <ModalFooter>
+          <Button color="warning" onClick={resetBackgroundToDefault}>
+            Default
+          </Button>
+          <Button color="secondary" onClick={() => setIsConfigOpen(false)}>
+            Cancel
+          </Button>
+          <Button color="primary" onClick={saveBackground}>
+            Save
+          </Button>
+        </ModalFooter>
+      </Modal>
     </div>
   );
 }

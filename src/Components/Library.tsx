@@ -20,6 +20,16 @@ export default function LibraryPage() {
     return raw === 'series' ? 'series' : 'novels';
   };
 
+  const categoryCounts = useMemo(() => {
+    return books.reduce(
+      (acc, book) => {
+        acc[bookCategory(book)] += 1;
+        return acc;
+      },
+      { novels: 0, series: 0 }
+    );
+  }, [books]);
+
   // Load books from JSON
   const loadBooks = async () => {
     setLoading(true);
@@ -102,7 +112,7 @@ export default function LibraryPage() {
             <Col sm={2} lg={2} xs={12} xl={3}>
               <h2 className="library-title">BOOK&nbsp;LIBRARY</h2>
             </Col>
-            <Col sm={4} lg={4} xs={12} className="d-flex ms-4">
+            <Col sm={3} lg={3} xs={12} className="d-flex ms-4">
               <Input
                 placeholder="🔎 Search by title... "
                 className="input-line library-search"
@@ -111,7 +121,7 @@ export default function LibraryPage() {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </Col>
-            <Col sm={2} lg={2} xs={12} className="d-flex justify-content-center align-items-center">
+            <Col sm={3} lg={3} xs={12} className="d-flex justify-content-center align-items-center ps-5 ms-3">
               <Button
                 color="transparent"
                 className="library-add-btn"
@@ -120,24 +130,26 @@ export default function LibraryPage() {
                 <span className="library-add-icon">Add&nbsp;book</span>
               </Button>
             </Col>
-            <Col sm={1} lg={1} xs={12} className="d-flex justify-content-center align-items-center ps-5">
+            <Col sm={1} lg={1} xs={12} className="d-flex justify-content-center align-items-center">
               <Button
                 color="transparent"
-                className={`library-add-btn-category ${libraryType === 'novels' ? 'active' : ''}`}
+                className={`library-add-btn-category d-flex flex-column ${libraryType === 'novels' ? 'active' : ''}`}
                 onClick={() => setLibraryType('novels')}
                 aria-pressed={libraryType === 'novels'}
               >
                 <span className="library-add-icon-category">Novels</span>
+                <span className="library-category-count">{categoryCounts.novels}&nbsp;</span>
               </Button>
             </Col>
-            <Col sm={1} lg={1} xs={12} className="d-flex justify-content-center align-items-center ps-5 ms-4">
+            <Col sm={1} lg={1} xs={12} className="d-flex justify-content-center align-items-center ps-5">
               <Button
                 color="transparent"
-                className={`library-add-btn-category ${libraryType === 'series' ? 'active' : ''}`}
+                className={`library-add-btn-category d-flex flex-column ${libraryType === 'series' ? 'active' : ''}`}
                 onClick={() => setLibraryType('series')}
                 aria-pressed={libraryType === 'series'}
               >
                 <span className="library-add-icon-category">Series</span>
+                <span className="library-category-count">{categoryCounts.series}&nbsp;</span>
               </Button>
             </Col>
           </Row>
