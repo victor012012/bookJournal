@@ -9,12 +9,14 @@ type BackgroundConfig = {
   mode: 'color' | 'image';
   color: string;
   image: string | null;
+  overlay?: number; // darkness overlay (0 = none, 1 = fully black)
 };
 
 const defaultBackgroundConfig: BackgroundConfig = {
   mode: 'color',
   color: '#282936',
   image: null,
+  overlay: 0.35,
 };
 
 // Compress and convert image File to base64 data URL
@@ -339,6 +341,7 @@ export default function BookForm({ onClose }: Props) {
           mode: 'color',
           color: incomingBackground,
           image: null,
+          overlay: defaultBackgroundConfig.overlay,
         };
       } else {
         patch.background = {
@@ -348,6 +351,10 @@ export default function BookForm({ onClose }: Props) {
               : 'color',
           color: incomingBackground?.color || defaultBackgroundConfig.color,
           image: incomingBackground?.image || null,
+          overlay:
+            typeof incomingBackground?.overlay === 'number'
+              ? incomingBackground.overlay
+              : defaultBackgroundConfig.overlay,
         };
       }
     }
@@ -506,6 +513,7 @@ export default function BookForm({ onClose }: Props) {
     state.background.mode,
     state.background.color,
     state.background.image,
+    state.background.overlay,
   ]);
 
   // Convert cover File to base64 when a File is set
@@ -597,6 +605,10 @@ export default function BookForm({ onClose }: Props) {
       mode: draftBackground.mode === 'image' && draftBackground.image ? 'image' : 'color',
       color: draftBackground.color || defaultBackgroundConfig.color,
       image: draftBackground.image,
+      overlay:
+        typeof draftBackground.overlay === 'number'
+          ? draftBackground.overlay
+          : defaultBackgroundConfig.overlay,
     };
     set({ background: normalizedBackground });
 
@@ -685,16 +697,22 @@ export default function BookForm({ onClose }: Props) {
   };
 
   const bookFormBackgroundStyle: React.CSSProperties =
-    state.background.mode === 'image' && state.background.image
-      ? {
-          backgroundColor: state.background.color,
-          backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.35), rgba(0, 0, 0, 1)), url(${state.background.image})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat',
-        }
+    (isConfigOpen ? draftBackground : state.background).mode === 'image' &&
+    (isConfigOpen ? draftBackground : state.background).image
+      ? (() => {
+          const activeBg = isConfigOpen ? draftBackground : state.background;
+          const overlay = typeof activeBg.overlay === 'number' ? activeBg.overlay : (defaultBackgroundConfig.overlay ?? 0.35);
+          const endOverlay = Math.min(1, overlay + 0.65);
+          return {
+            backgroundColor: activeBg.color,
+            backgroundImage: `linear-gradient(rgba(0, 0, 0, ${overlay}), rgba(0, 0, 0, ${endOverlay})), url(${activeBg.image})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat',
+          };
+        })()
       : {
-          background: state.background.color,
+          background: (isConfigOpen ? draftBackground : state.background).color,
         };
 
   useEffect(() => {
@@ -725,12 +743,16 @@ export default function BookForm({ onClose }: Props) {
       })),
     }));
 
-    if (state.background.mode === 'image' && state.background.image) {
+    const activeBg = isConfigOpen ? draftBackground : state.background;
+
+    if (activeBg.mode === 'image' && activeBg.image) {
+      const overlay = typeof activeBg.overlay === 'number' ? activeBg.overlay : (defaultBackgroundConfig.overlay ?? 0.35);
+      const endOverlay = Math.min(1, overlay + 0.65);
       targets.forEach((el) => {
-        el.style.setProperty('background-color', state.background.color, 'important');
+        el.style.setProperty('background-color', activeBg.color, 'important');
         el.style.setProperty(
           'background-image',
-          `linear-gradient(rgba(0, 0, 0, 0.35), rgba(0, 0, 0, 1)), url(${state.background.image})`,
+          `linear-gradient(rgba(0, 0, 0, ${overlay}), rgba(0, 0, 0, ${endOverlay})), url(${activeBg.image})`,
           'important',
         );
         el.style.setProperty('background-size', 'cover', 'important');
@@ -740,7 +762,7 @@ export default function BookForm({ onClose }: Props) {
       });
     } else {
       targets.forEach((el) => {
-        el.style.setProperty('background', state.background.color, 'important');
+        el.style.setProperty('background', activeBg.color, 'important');
         el.style.removeProperty('background-image');
         el.style.removeProperty('background-size');
         el.style.removeProperty('background-position');
@@ -757,7 +779,7 @@ export default function BookForm({ onClose }: Props) {
         });
       });
     };
-  }, [state.background]);
+  }, [state.background, isConfigOpen, draftBackground]);
 
   const onDragOverStickerZone = (e: React.DragEvent) => {
     if (!isFileDrag(e.dataTransfer)) return;
@@ -886,15 +908,22 @@ export default function BookForm({ onClose }: Props) {
 
   return (
     <div className={`bookform-page ${state.closing ? 'exiting' : 'entering'}`} style={bookFormBackgroundStyle}>
-      <div className="position-fixed top-0 end-0 p-3" style={{ zIndex: 1050 }}>
-        <Button color="transparent" className="library-add-btn-config" onClick={openConfigModal}>
-          <span className="library-add-icon-category">⚙️</span>
-        </Button>
-      </div>
+
       <div
         className={`bookform-container ${state.closing ? 'exiting' : 'entering'}`}
         onAnimationEnd={onAnimationEnd}
       >
+        <div className="floating-stickers-root-modal-image" style={{ padding: 12, right: 0, top: 0, zIndex: 100 }}>
+          <button type="button" className="floating-add-sticker-btn-modal-image" title="Config background" onClick={openConfigModal}>
+            <span className="sticker-btn-icon" style={{color:"white"}}>
+
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                <path fill-rule="evenodd" clip-rule="evenodd" d="M12.7848 0.449982C13.8239 0.449982 14.7167 1.16546 14.9122 2.15495L14.9991 2.59495C15.3408 4.32442 17.1859 5.35722 18.9016 4.7794L19.3383 4.63233C20.3199 4.30175 21.4054 4.69358 21.9249 5.56605L22.7097 6.88386C23.2293 7.75636 23.0365 8.86366 22.2504 9.52253L21.9008 9.81555C20.5267 10.9672 20.5267 13.0328 21.9008 14.1844L22.2504 14.4774C23.0365 15.1363 23.2293 16.2436 22.7097 17.1161L21.925 18.4339C21.4054 19.3064 20.3199 19.6982 19.3382 19.3676L18.9017 19.2205C17.1859 18.6426 15.3408 19.6754 14.9991 21.405L14.9122 21.845C14.7167 22.8345 13.8239 23.55 12.7848 23.55H11.2152C10.1761 23.55 9.28331 22.8345 9.08781 21.8451L9.00082 21.4048C8.65909 19.6754 6.81395 18.6426 5.09822 19.2205L4.66179 19.3675C3.68016 19.6982 2.59465 19.3063 2.07505 18.4338L1.2903 17.1161C0.770719 16.2436 0.963446 15.1363 1.74956 14.4774L2.09922 14.1844C3.47324 13.0327 3.47324 10.9672 2.09922 9.8156L1.74956 9.52254C0.963446 8.86366 0.77072 7.75638 1.2903 6.8839L2.07508 5.56608C2.59466 4.69359 3.68014 4.30176 4.66176 4.63236L5.09831 4.77939C6.81401 5.35722 8.65909 4.32449 9.00082 2.59506L9.0878 2.15487C9.28331 1.16542 10.176 0.449982 11.2152 0.449982H12.7848ZM12 15.3C13.8225 15.3 15.3 13.8225 15.3 12C15.3 10.1774 13.8225 8.69998 12 8.69998C10.1774 8.69998 8.69997 10.1774 8.69997 12C8.69997 13.8225 10.1774 15.3 12 15.3Z" fill="#ffffff"/>
+             </svg>
+
+            </span>
+          </button>
+        </div>
         <Row className="mb-3 align-items-center bookform-header-row">
           <Col xs="auto" className="pe-2">
             <Button
@@ -1431,6 +1460,25 @@ export default function BookForm({ onClose }: Props) {
                   }))
                 }
               />
+            </div>
+
+            <div className="d-flex align-items-center gap-2">
+              <label className="form-label mb-0">Darkness</label>
+              <input
+                type="range"
+                min={0}
+                max={0.8}
+                step={0.01}
+                value={typeof draftBackground.overlay === 'number' ? draftBackground.overlay : defaultBackgroundConfig.overlay}
+                onChange={(e) =>
+                  setDraftBackground((prev) => ({
+                    ...prev,
+                    overlay: Number(e.target.value),
+                  }))
+                }
+                style={{ width: 220 }}
+              />
+              <div style={{ minWidth: 48 }}>{Math.round((draftBackground.overlay ?? (defaultBackgroundConfig.overlay ?? 0.35)) * 100)}%</div>
             </div>
 
             <div>
